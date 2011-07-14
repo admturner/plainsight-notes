@@ -1,0 +1,45 @@
+.postbox .inside {
+	margin: 12px;
+}
+
+.postbox-container {
+	float: left;
+	width:49%;
+}
+
+.inside .note {
+	border-bottom: 1px solid #ddd;
+	margin: 18px -12px;
+}
+.inside .note .photo {
+	float: left;
+	margin: 0 12px;
+	width: 50px;
+}
+.note .note-meta {
+	color: #999;
+	font-family: Georgia, 'Times New Roman', 'Bitstream Charter', Times, serif;
+	font-weight: normal;
+	margin: 0px 0px 0.2em;
+}
+.note cite {
+	font-style: normal;
+}
+.note small {
+	margin: 0 0 0 74px;
+}
+
+a:link, a:visited {
+	text-decoration: none;
+}
+
+label {
+	display: inline;
+	padding-right: 3em;
+}
+
+#courseinfo ul {
+	list-style:none;
+	margin:0;
+	padding:0;
+}
