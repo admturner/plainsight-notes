@@ -1,10 +1,10 @@
-m<?php 
+<?php 
 /*
 Plugin Name: PlainSight Notes
 Plugin URI: http://chnm.gmu.edu/hiddeninplainsight/
 Description: A plugin allowing note fields for users to save text to be retrieved elsewhere.
-Version: 0.9.7
-Author: Adapted by Adam Turner from the work of the ScholarPress folks, being Jeremy Boggs, Dave Lester, Zac Gordon, and Sean Takats 
+Version: 0.9.8
+Author: Adam Turner 
 Author URI: http://adamturner.org/
 License: GPL2
 */
@@ -40,6 +40,8 @@ $plainsightnotes_path = ABSPATH . PLUGINDIR . DIRECTORY_SEPARATOR . 'plainsight-
 include_once 'plainsightnotes-public.php';
 include_once 'plainsightnotes-notes.php';
 include_once 'psnotes-shortcodes.php';
+include_once 'psnotes-settings.php';
+/* add back once using these again:	include_once 'psnotes-timeline.php'; */
 require_once( $plainsightnotes_path . 'lib/boones-sortable-columns.php' );
 
 if ( isset($_GET['activate']) && $_GET['activate'] == 'true' ) {
@@ -74,11 +76,13 @@ function psn_get_admin_options() {
 	}
 	return $psnAdminOptions;
 }
-function psn_set_admin_options($instructor_firstname, $instructor_lastname, $instructor_email)
-{
-		$psnAdminOptions = array('instructor_firstname' => $instructor_firstname,
+
+function psn_set_admin_options($instructor_firstname, $instructor_lastname, $instructor_email) {
+	$psnAdminOptions = array(
+		'instructor_firstname' => $instructor_firstname,
 		'instructor_lastname' => $instructor_lastname,
-		'instructor_email' => $instructor_email);
+		'instructor_email' => $instructor_email
+	);
 	
 	$psn_admin_options = 'PlainSightNotesAdminOptions';
 	
@@ -91,322 +95,10 @@ function psn_set_admin_options($instructor_firstname, $instructor_lastname, $ins
 	}
 }
 
-
-
-
-/**
- * The PS Notes settings functions
- *
- *	Collect PS Notes settings values with: $psn_settings = get_option('psn_settings');
- * and then $psn_settings['variable_name']
- *
- * Current variable names:
- * 	noteform_width (the width of the Note input textarea)
- * 	noteform_titletype (whether hidden or text)
- *
- * Many thanks to Bob Chatman's tutorial at 
- * http://blog.gneu.org/2010/09/intro-to-the-wordpress-settings-api/
- *
- * @since 0.9.6
- * 
- * @todo Clean up (bring everything up to its own line)
- * @todo Probably move to its own file and include_once here
- */
-class PSNSettings {
-
-	function init() {
-		// Create array of PSNotes setting: psn_settings
-		register_setting(
-			'psn_settings_group', 
-			'psn_settings', 
-			array('PSNSettings', 'validate_fn'));
-		
-		// Create note form settings section: note_form_group
-		add_settings_section(
-			'note_form_group', 
-			'Note Form Settings', 
-			array('PSNSettings', 'note_section_overview_fn'), 
-			'note_form_settings');
-		
-		// Call noteform width field within note_form_group
-		add_settings_field(
-			'note_form_width_id', 
-			'Note Form Width', 
-			array('PSNSettings', 'note_form_width_control_fn'), 
-			'note_form_settings', 
-			'note_form_group');
-		
-		// Call noteform titletype checkbox within note_form_group
-		add_settings_field(
-			'note_form_titletype_id', 
-			'Note title field display', 
-			array('PSNSettings', 'note_form_titletype_control_fn'), 
-			'note_form_settings', 
-			'note_form_group');
-		
-		// Call noteform notetitle field within note_form_group
-		add_settings_field(
-			'note_form_notetitle_id', 
-			'Default note title', 
-			array('PSNSettings', 'note_form_notetitle_control_fn'), 
-			'note_form_settings', 
-			'note_form_group');
-		
-		// Call noteform character limit field within note_form group
-		add_settings_field(
-			'note_form_charlimit_id',
-			'Note character limit',
-			array('PSNSettings', 'note_form_charlimit_control_fn'),
-			'note_form_settings',
-			'note_form_group');
-		
-		// Call noteform allow repeats yes/no field w/in note_form group
-		add_settings_field(
-			'note_form_repeats_id',
-			'Allow multiple posts per note',
-			array('PSNSettings', 'note_form_repeats_control_fn'),
-			'note_form_settings',
-			'note_form_group');
-		
-		// Call noteform no-repeat-posts message w/in note_form group
-		add_settings_field(
-			'note_form_norepeats_msg',
-			'Message: already submitted',
-			array('PSNSettings', 'note_form_norepeats_msn_fn'),
-			'note_form_settings',
-			'note_form_group');
-		
-		/*
-		Fields for: add_settings_field()
-			'unique ID',
-			'Name for display',
-			array('PSNSettings, 'callback_function_to_get_element'),
-			'Last field of add_settings_section (probably note_form_settings)',
-			'group_it_belongs_to (probably note_form_group');
-		*/
-		wp_enqueue_script( 'thickbox' );
-		wp_enqueue_style( 'thickbox' );
-	}
-	
-	function admin_menus() {
-		if (!function_exists('current_user_can') || !current_user_can('manage_options')) {
-			return;
-		}
-		if (function_exists('add_options_page')) {
-			add_options_page(
-				'PSNotes Settings', 
-				'PS Notes Settings', 
-				'manage_options',
-				'ps_notes_settings', 
-				array('PSNSettings', 'psnotes_settings_page_fn'));
-		}
-	}
-
-	function psnotes_settings_page_fn() {
-		$psn_settings = get_option('psn_settings');
-		?>
-		<div class="wrap">
-			<?php screen_icon("options-general"); ?>
-			<h2>PS Notes Settings</h2>
-			<form action="options.php" method="post">
-				
-				<?php settings_fields('psn_settings_group'); ?>
-				<?php do_settings_sections('note_form_settings'); ?>
-				
-				<p class="submit">
-					<input name="Submit" type="submit" class="button-primary" value="<?php esc_attr_e('Save Changes'); ?>" />
-				</p>
-			</form>
-			<h4>Future options:</h4>
-			<p>If you have any you'd like to add to the list, please let me know</p>
-			<ol>
-				<li>Don't de-register settings upon plugin deactivation</li>
-				<li>Date/time format (or perhaps just hook into WP date/time option)</li>
-				<li>Height of note form box, in rows</li>
-			</ol>
-		</div> 
-	<?php 
-	}
-	
-	/* The form section called with add_settings_section() */
-	function note_section_overview_fn() {
-	?>
-		<p>The default settings for displaying the PS Notes input textarea and controlling note collection.</p>
-		<p><a href="#TB_inline?height=500&width=800&inlineId=note_preview" class="thickbox">Preview</a> note form with current settings. (Not including live page styles.)</p>
-		<div id="note_preview" style="display:none;">
-				<?php 
-					$psn_settings = get_option('psn_settings');
-					psn_notes_editform( 'notebefore=&noteafter=' );
-				?>
-		</div>
-	<?php 
-	}
-
-	/* The form elements called with add_settings_field() */
-	function note_form_width_control_fn() {
-		$psn_settings = get_option('psn_settings');
-		?>	
-		<input id="noteform_width" 
-				 name="psn_settings[noteform_width]" 
-				 class="regular-text" 
-				 type="text" 
-				 value="<?php echo $psn_settings['noteform_width']; ?>" /> 
-		<span class="description">Width of note form measured in columns</span>
-	<?php 
-	}
-	
-	function note_form_titletype_control_fn() {
-		$psn_settings = get_option('psn_settings');
-		$options = array("Text", "Hidden");
-		
-		foreach($options as $option) {
-			$checked = ($psn_settings['noteform_titletype'] == strtolower($option)) ? ' checked="checked" ' : '';
-			?>
-			<label>
-				<input id="noteform_titletype"
-						 name="psn_settings[noteform_titletype]" 
-						 class="code" 
-						 value="<?php echo $option; ?>" 
-						 type="radio" 
-						 <?php echo $checked; ?> />
-			<?php echo $option; ?>
-			</label><br />
-		<?php 
-		} // endforeach
-	}
-	
-	function note_form_notetitle_control_fn() {
-		$psn_settings = get_option('psn_settings');		
-		?>	
-		<input id="noteform_notetitle" 
-				 name="psn_settings[noteform_notetitle]" 
-				 class="regular-text" 
-				 type="text" 
-				 <?php if ( $psn_settings['noteform_titletype'] != 'hidden' ) { echo 'readonly="readonly"'; } ?> 
-				 value="<?php echo $psn_settings['noteform_notetitle']; ?>" />
-		<span class="description">Title notes will be given with when the field is hidden from users
-		<br />Variables you can use:</span><br />
-		<span>
-		<code>%%SOURCE_PAGE_TITLE%%</code> Page title of page the note was submitted from<br />
-		<code>%%USER_NAME%%</code> User's display name<br />
-		<code>%%FIRST%%</code> = User's first name<br />
-		<code>%%LAST%%</code> User's last name<br />
-		<code>%%DATE%%</code> Date note was submitted<br />
-		</span>
-	<?php	
-	}
-	
-	function note_form_repeats_control_fn() {
-		$psn_settings = get_option('psn_settings'); 
-		?>
-		<input id="noteform_repeats" 
-				 name="psn_settings[noteform_repeats]" 
-				 type="checkbox" 
-				 class="code" 
-				 value="1" 
-				 <?php checked( $psn_settings['noteform_repeats'], 1 ); ?> />
-	<?php 
-	}
-	
-	function note_form_charlimit_control_fn() {
-		$psn_settings = get_option('psn_settings');
-		?>
-		<input id="noteform_charlimit" 
-				 name="psn_settings[noteform_charlimit]" 
-				 class="regular-text" 
-				 type="text"  
-				 value="<?php echo $psn_settings['noteform_charlimit']; ?>" />
-		<span class="description">To remove character limit on notes enter value of 0.</span>
-	<?php 
-	}
-	
-	function note_form_norepeats_msn_fn() {
-		$psn_settings = get_option('psn_settings');
-		?>
-		<input id="noteform_norepeats_msg" 
-				 name="psn_settings[noteform_norepeats_msg]" 
-				 class="regular-text"
-				 type="text" 
-				 <?php if ( $psn_settings['noteform_repeats'] == 1 ) { echo 'readonly="readonly"'; } ?>
-				 value="<?php echo $psn_settings['noteform_norepeats_msg']; ?>" />
-		<span class="description">Message to display in place of note forms where user already submitted a note.<br />
-		Some formatting allowed using BBCode format:</span><br />
-		<span>
-			<code>[b]some text[/b]</code> becomes <strong>some text</strong><br />
-			<code>[i]some text[/i]</code> becomes <em>some text</em><br />
-			<code>[s]some text[/s]</code> becomes <del>some text</del>
-		</span>
-	<?php 
-	}
-	
-	/* Validate submitted form data, then return squeaky-clean settings */
-	function validate_fn($input) {
-		$psn_settings = get_option('psn_settings');
-	
-		// validate noteform columns as an integer
-		if (sprintf("%.0f", $input['noteform_width']) == $input['noteform_width']) {
-			$psn_settings['noteform_width'] = $input['noteform_width'];
-		} else {
-			add_settings_error('psn_settings', 'settings_updated', __('<em>Note form width:</em> Only integers are accepted. Please use a number.'));
-		}
-		// validate noteform titletype as either 'text' or 'hidden'
-		if ($input['noteform_titletype'] == 'Text' || $input['noteform_titletype'] == 'Hidden') { 
-			$psn_settings['noteform_titletype'] = strtolower($input['noteform_titletype']);
-		} else {
-			add_settings_error('psn_settings', 'settings_updated', __('<em>Note form title display:</em> Only 2 options, Text or Hidden, are accepted. Adieu.'));
-		}
-		// validate noteform character limit as an integer
-		if (sprintf("%.0f", $input['noteform_charlimit']) == $input['noteform_charlimit']) {
-			$psn_settings['noteform_charlimit'] = $input['noteform_charlimit'];
-		} else {
-			add_settings_error('psn_settings', 'settings_updated', __('<em>Note form character limit:</em> Only integers are accepted. Please use a number.'));
-		}
-		
-		// validate noteform repeats checkbox
-		$psn_settings['noteform_repeats'] = $input['noteform_repeats'];
-		
-		// strip html and php tags from input and output noteform data
-		$psn_settings['noteform_notetitle'] = strip_tags($input['noteform_notetitle']);
-		$psn_settings['noteform_norepeats_msg'] = strip_tags($input['noteform_norepeats_msg']);
-		
-		// And finally, spit out the validated data
-		return $psn_settings;
-	}
-} // end PSNSettings class
-
-// Hook settings into the admin init and menu processes
-add_action('admin_init', array('PSNSettings', 'init'));
-add_action('admin_menu', array('PSNSettings', 'admin_menus'));
-
-// Define default option settings
-register_activation_hook(__FILE__, 'add_psnsettings_defaults_fn');
-function add_psnsettings_defaults_fn() {
-    $arr = array(
-    	"noteform_width" => "80", 
-    	"noteform_titletype" => "text", 
-    	"noteform_notetitle" => "A Note", 
-    	"noteform_charlimit" => "2500",
-    	"noteform_norepeats_msg" => "You have already completed this.",
-    	"noteform_repeats" => 1);
-    update_option('psn_settings', $arr);
-}
-
-/* Things to add
-
-Run a de-register settings function on plugin deactivation; 
-and a user option to NOT de-register settings upon deactivation
-
-*/
-// End PS Notes settings functions
-
-
-
-
-
-
 /** 
- * Add multisite compliance; thanks to: http://shibashake.com/wordpress-theme/write-a-plugin-for-wordpress-multi-site
- * @since WP3
+ * Add multisite compliance
+ * 
+ * Thanks to @link http://shibashake.com/wordpress-theme/write-a-plugin-for-wordpress-multi-site 
  */
 function plainsightnotes_install() {
 	global $wpdb;
@@ -515,8 +207,7 @@ function _plainsightnotes_install() {
 	$post_modified = $now;
 	$post_modified_gmt = $now_gmt;
 	
-	if ( !$wpdb->get_row("SELECT * FROM $wpdb->posts WHERE post_title='Notes'", OBJECT) )
-	{
+	if ( !$wpdb->get_row("SELECT * FROM $wpdb->posts WHERE post_title='Notes'", OBJECT) ) {
 		$notes_title = "Notes";
 		$notes_content = "<div id=\"psnotes\"><psnotes /></div>";
 		$notes_excerpt = "";
@@ -539,12 +230,15 @@ function _plainsightnotes_install() {
 	}
 }
 
-/* Run plainsightnotes_install() function on all new multisite blogs created, if active for network */
+/**
+ * When plugin is active on the network, run install on new blogs
+ *
+ * This function runs plainsightnotes_install() on all new multisite
+ * blogs created, but only when the plugin active for wholenetwork
+ */
 function new_blog($blog_id) {
 	global $wpdb;
-
 	if ( is_plugin_active_for_network('plainsight-notes/plainsightnotes-admin.php') ) {
-		//$old_blog = $wpdb->blogid;
 		switch_to_blog($blog_id);
 			plainsightnotes_install();
 		restore_current_blog();
@@ -552,37 +246,38 @@ function new_blog($blog_id) {
 }
 add_action('wpmu_new_blog', 'new_blog');
 
-// Add management pages to the administration panel; sink function for 'admin_menu' hook
-function psns_admin_menu()
-{
+/**
+ * Add management pages to the administration panel
+ * Sink function for 'admin_menu' hook
+ */
+function psns_admin_menu() {
 	$psnManage = add_menu_page('PS Notes','PS Notes','delete_others_posts','plainsightnotes','psn_manage');
 	$notes = add_submenu_page('plainsightnotes','PS Notes | All Notes', 'All Notes', 'delete_others_posts', 'notes', 'psn_notes_manage');
-	$timeline = add_submenu_page('plainsightnotes', 'PS Notes | Timeline', 'Timeline', 'delete_others_posts', 'timeline', 'psn_timeline_manage');
+	// $timeline = add_submenu_page('plainsightnotes', 'PS Notes | Timeline', 'Timeline', 'delete_others_posts', 'timeline', 'psn_timeline_manage');
 	$help = add_submenu_page('plainsightnotes', 'PS Notes | Help', 'Help', 'delete_others_posts', 'help', 'psn_help');
-	$plainsightnotesPages = array($psnManage, $notes, $timeline, $help);
+	$plainsightnotesPages = array($psnManage, $notes, /*$timeline,*/ $help);
 	
 	foreach( $plainsightnotesPages as $page ) {
 		add_action('admin_print_styles-' . $page, 'psn_admin_stuff');
 	}
 }
 
-/* Set up stylesheets and scripts */
+/**
+ * Set up stylesheets and scripts 
+ */
 function psn_admin_init() {
 	wp_register_style( 'psnadminstyle', plugins_url('/lib/css/psnadmin.css', __FILE__) );
 }
-
 add_action('wp_print_styles', 'psn_public_style');
 function psn_public_style() {
 	wp_register_style( 'plainsightstyle', plugins_url('/lib/css/plainsightnotes.css', __FILE__) );
 	wp_enqueue_style( 'plainsightstyle' );
 }
-
 add_action('init', 'psn_public_script');
 function psn_public_script() {
 	wp_register_script( 'plainsightscript', plugins_url('/lib/js/plainsightnotes.js', __FILE__), array('jquery'), '', true );
 	wp_enqueue_script( 'plainsightscript' );
 }
-
 // admin styles & scripts
 function psn_admin_stuff() {
 	wp_enqueue_style( 'psnadminstyle' );
@@ -590,11 +285,233 @@ function psn_admin_stuff() {
 	wp_enqueue_script( 'dashboard' );
 }
 
-// The management splash page
-function psn_manage() {
+/**
+ * A function for printing the Note Form and processing form data
+ * 
+ * @todo Separate printing and management functions
+ */
+function psn_notes_manage( $args ) {
+	global $wpdb;
+	
+	$updateaction = !empty($_REQUEST['updateaction']) ? $_REQUEST['updateaction'] : '';
+	$noteID = !empty($_REQUEST['noteID']) ? $_REQUEST['noteID'] : '';
+	
+	if ( isset($_REQUEST['action']) ) : 
+		
+		if ( $_REQUEST['action'] == 'delete_note' ) {
+			
+			if ( ! is_admin() ) {
+				$nonce = $_REQUEST['_wpnonce'];
+				if( ! wp_verify_nonce( $nonce, 'psnotes-note-delete' ) ) die( 'Are you sure you want to do this?' );
+			} else {
+				check_admin_referer( 'psnotes-note-delete' );
+			}
+			
+			$noteID = intval($_GET['noteID']);
+			if (empty($noteID)) {
+				?><div class="error"><p><strong>Failure:</strong> No notes ID given. Successfully emptied the nothing.</p></div><?php
+			} else {
+				$wpdb->query("DELETE FROM " . $wpdb->prefix . "notes WHERE noteID = '" . $noteID . "'");
+				$sql = "SELECT noteID FROM " . $wpdb->prefix . "notes WHERE noteID = '" . $noteID . "'";
+				$check = $wpdb->get_results($sql);
+				if ( empty($check) || empty($check[0]->noteID) ) {
+					?><div class="updated"><p>Note ID <?php echo $noteID; ?> deleted successfully.</p></div><?php
+				} else {
+					?><div class="error"><p><strong>Failure:</strong></p></div><?php
+				}
+			}
+		} // end delete_note block
+	endif;
+	
+	if ( $updateaction == 'update_note' ) {
+		
+		if ( ! is_admin() ) {
+			$nonce = $_REQUEST['_wpnonce'];
+			if( ! wp_verify_nonce( $nonce, 'psnotes-note-submit' ) ) die( 'Are you sure you want to do this?' );
+		} else {
+			check_admin_referer( 'psnotes-note-submit' );
+		}
+		
+		$title = !empty($_REQUEST['note_title']) ? $_REQUEST['note_title'] : '';
+		$authorID = !empty($_REQUEST['note_authorID']) ? $_REQUEST['note_authorID'] : '';
+		$content = !empty($_REQUEST['note_content']) ? $_REQUEST['note_content'] : '';
+		$parentpostID = !empty($_REQUEST['note_ppostID']) ? $_REQUEST['note_ppostID'] : '';
+		
+		if ( empty($noteID) ) {
+			?><div class="error"><p><strong>Failure:</strong> No note ID provided. I can't save what doesn't exist.</p></div><?php
+		} else {
+			$sql = "UPDATE " . $wpdb->prefix . "notes SET notes_title = '" . $title . "', notes_authorID = '" . $authorID . "', notes_content = '" . $content . "', notes_parentPostID = '" . $parentpostID . "' WHERE noteID = '" . $noteID . "'";
+			$wpdb->get_results($sql);
+			$sql = "SELECT noteID FROM " . $wpdb->prefix . "notes WHERE notes_title = '" . $title . "' and notes_authorID = '" . $authorID . "' and notes_content = '" . $content . "' and notes_parentPostID = '" . $parentpostID . "' LIMIT 1";
+			$check = $wpdb->get_results($sql);
+			if ( empty($check) || empty($check[0]->noteID) ) {
+				?><div class="error"><p><strong>Failure:</strong> I couldn't update your entry. Perhaps try again?</p></div><?php
+			} else {
+				?><div class="updated"><p>Note <?php echo $noteID; ?> updated successfully.</p></div><?php
+			}
+		}
+	} // end update_note block
+	
+	elseif ( $updateaction == 'add_note' ) {
+		
+		if ( ! is_admin() ) {
+			$nonce = $_REQUEST['_wpnonce'];
+			if( ! wp_verify_nonce( $nonce, 'psnotes-note-submit' ) ) die( 'Are you sure you want to do this?' );
+		} else {
+			check_admin_referer( 'psnotes-note-submit' );
+		}
+		
+		$title = !empty($_REQUEST['note_title']) ? $_REQUEST['note_title'] : '';
+		$authorID = !empty($_REQUEST['note_authorID']) ? $_REQUEST['note_authorID'] : '';
+		$date = !empty($_REQUEST['note_date']) ? $_REQUEST['note_date'] : '';
+		$content = !empty($_REQUEST['note_content']) ? $_REQUEST['note_content'] : '';
+		$parentpostID = !empty($_REQUEST['note_ppostID']) ? $_REQUEST['note_ppostID'] : '';
+		
+		$sql = "INSERT INTO " . $wpdb->prefix . "notes SET notes_title = '" . $title . "', notes_authorID = '" . $authorID . "', notes_date = '" . $date . "', notes_content = '" . $content . "', notes_parentPostID = '" . $parentpostID . "'";
+		$wpdb->get_results($sql);
+		$sql = "SELECT noteID FROM " . $wpdb->prefix . "notes WHERE notes_title = '" . $title . "' and notes_authorID = '" . $authorID . "' and notes_date = '" . $date . "' and notes_content = '" . $content . "' and notes_parentPostID = '" . $parentpostID . "'";
+		$check = $wpdb->get_results($sql);
+		if ( empty($check) || empty($check[0]->noteID) ) {
+			?><div class="error"><p><strong>Failure:</strong> Oh hum, nothing happened. Try again? </p></div><?php
+		} else {
+			?><div class="updated"><p>Super! Note saved.</p></div><?php
+		}
+	} // end add_note block
+	?>
+
+	<div class="wrap">
+	<?php
+	if ( $_REQUEST['action'] == 'edit_note' ) { ?>
+		<h2><?php _e('Edit Note'); ?></h2>
+		<?php
+		if ( empty($noteID) ) {
+			echo "<div class=\"error\"><p>I didn't get an entry identifier from the request. Stopping here.</p></div>";
+		} else {			
+			psn_notes_editform('mode=update_note&noteID=' . $noteID . '');
+		}
+	} else {
+		if ( is_admin() ) {
+			psn_notes_displaylist();
+		} else { 
+			psn_notes_editform($args);
+		}
+	}
+	?>
+	</div>
+<?php 
+}
+
+/**
+ * Prints the main Note add/edit form
+ *
+ */
+function psn_notes_editform( $args ) {
+	global $wpdb, $current_user;
+	$data = false;
+	$psn_settings = get_option('psn_settings');
+	
+	// Set default values
+	$defaults = array (
+		'notebefore' => '<form name="notesform" id="psnotesform" class="wrap" method="post" action="">',
+		'noteafter' => '</form>',
+		'titletype' => $psn_settings['noteform_titletype'],
+		'notetitle' => $psn_settings['noteform_notetitle'],
+		'titlesize' => 45,
+		'showsubmit' => true,
+		'mode' => 'add_note',
+		'noteID' => false,
+		'allowrepeats' => $psn_settings['noteform_repeats'],
+		'norepeats_msg' => $psn_settings['noteform_norepeats_msg'],
+		'char_limit' => (int) $psn_settings['noteform_charlimit'],
+		'textarea_rows' => 10,
+		'textarea_cols' => (int) $psn_settings['noteform_width'],
+	);
+	// Parse incoming $args into an array and merge with $defaults
+	$args = wp_parse_args( $args, $defaults );
+	// Declare each $args item as individual variable
+	extract( $args, EXTR_SKIP );
+	
 	global $current_user;
 	get_currentuserinfo();
-?>
+	
+	if ( $noteID !== false ) {
+		if ( intval($noteID) != $noteID ) {
+			echo "<div class=\"error\">Not a valid ID!</div>";
+			return;
+		} else {
+			$data = $wpdb->get_results("SELECT * FROM " . $wpdb->prefix . "notes WHERE noteID = '" . $noteID . " LIMIT 1'");
+			if ( empty($data) ) {
+				echo "<div class=\"error\"><p>Sorry. I could not find a note with that ID.</p></div>";
+				return;
+			}
+			$data = $data[0];
+		}
+	}
+	psn_get_admin_options();
+	
+	$parentp_id = get_the_ID();
+	$author_id = get_current_user_id();
+	$notedata = psn_get_notes_by_meta( $parentp_id, $author_id, $num );
+
+	// Filtering to use variables in the noteform_notetitle value
+	if ( empty($data) ) { 
+		$name = $current_user->display_name;
+		$source_title = get_the_title($parentp_id);
+		$first = $current_user->first_name;
+		$last = $current_user->last_name;
+		$date = date_i18n('F j, Y');	
+	
+		$replace_these	= array('%%USER_NAME%%', '%%SOURCE_PAGE_TITLE%%', '%%FIRST%%', '%%LAST%%', '%%DATE%%');
+		$with_these		= array($name, $source_title, $first, $last, $date);
+		$hidden_title = str_replace($replace_these, $with_these, $notetitle);
+	}
+	// Filtering to allow rudimentary BBCode formatting in some messages defined in Settings
+	$bbcode_in = array('[b]', '[/b]', '[i]', '[/i]', '[s]', '[/s]');
+	$html_out = array('<strong>', '</strong>', '<em>', '</em>', '<del>', '</del>');
+	$norepeats_msg = str_replace($bbcode_in, $html_out, $norepeats_msg);
+	
+	/* Checks to see if user has already submitted a 'note' for this page; displays note form if not */
+	if ( $allowrepeats != 1 && !empty( $notedata ) ) :
+		echo '<div class="updated"><p>' . $norepeats_msg .'</p></div>';							
+	else : /* Note not submitted by this user yet, so display the form */ ?>
+		<!-- Beginning of note adding form -->
+		<?php echo $notebefore; ?>
+			<?php wp_nonce_field( 'psnotes-note-submit' ); ?>
+			<input type="hidden" name="updateaction" value="<?php echo $mode?>" />
+			<input type="hidden" name="noteID" value="<?php echo $noteID?>" />
+			<input type="hidden" name="note_ppostID" value="<?php if ( !empty($data) ) {echo htmlspecialchars($data->notes_parentPostID);} else {the_ID();} ?>" />
+			<div id="titlediv">
+				<input type="hidden" id="date" name="note_date" value="<?php if ( !empty($data) ) { echo htmlspecialchars($data->notes_date); } else { echo date_i18n('F j, Y'); } ?>" />			
+				<input type="hidden" name="note_authorID" value="<?php if ( !empty($data) ) { echo htmlspecialchars($data->notes_authorID);} else {echo $current_user->ID;} ?>" />
+				<?php if ( $titletype == 'text' ) { ?>
+					<label for="note_title"><?php _e('Title'); ?></label>
+					<input type="<?php echo $titletype; ?>" id="title" name="note_title" class="input" size="<?php echo $titlesize; ?>" value="<?php if ( !empty($data) ) echo htmlspecialchars($data->notes_title); ?>" />				
+				<?php } elseif ( $titletype == 'hidden' ) { ?>
+					<input type="<?php echo $titletype; ?>" id="title" name="note_title" class="input" size="<?php echo $titlesize; ?>" value="<?php if ( !empty($data) ) { echo htmlspecialchars($data->notes_title); } else { echo $hidden_title; } ?>" />
+				<?php } ?>
+			</div><!-- #titlediv -->
+			<div class="postbox" id="notefield">
+				<div class="inside">
+					<textarea name="note_content" id="note-textarea" class="mceEditor input maxlength" rows="<?php echo $textarea_rows; ?>" cols="<?php echo $textarea_cols; ?>"><?php if ( !empty($data) ) echo htmlspecialchars($data->notes_content); ?></textarea>
+					<?php if ( $char_limit > 0 ) { ?>
+						<span class="remaining-char"><span id="psnscript-chars"><?php echo $char_limit; ?></span> character limit.</span>
+					<?php } ?>
+				</div> <?php // closes inside ?>
+			</div> <?php // closes postbox ?>
+			<?php if ( $showsubmit == true ) { ?>
+				<p class="submit"><input type="submit" name="save" class="button-primary" value="Save Note" /></p>
+			<?php } ?>
+		<?php echo $noteafter; ?>
+		<!-- End of note adding form -->	
+	<?php endif;
+}
+
+/**
+ * Prints the Admin area Notes splash page
+ */
+function psn_manage() {
+	global $current_user;
+	get_currentuserinfo(); ?>
 	<div class="wrap">
 		<div id="icon-index" class="icon32"><br /></div>
 		<h2>PlainSight Notes</h2>
@@ -651,7 +568,7 @@ function psn_manage() {
 						<?php
 						}
 						?>
-						<div id="dashboard_recent_timeline" class="postbox">
+						<!-- <div id="dashboard_recent_timeline" class="postbox">
 							<div class="handlediv" title="Click to toggle"><br /></div>
 							<h3 class="handle"><span>Recent Timeline Selections</span></h3>
 							<div class="inside">
@@ -659,7 +576,7 @@ function psn_manage() {
 									<p>Nothing here for now.</p>
 								</div><?php // Closes #the-comment-list ?>
 							</div> <?php // Closes .inside ?>
-						</div><?php // Closes .postbox #dashboard_recent_timeline ?>
+						</div><?php // Closes .postbox #dashboard_recent_timeline ?> -->
 					</div><?php // Closes #side-sortables .meta-box-sortables ?>
 				</div> <?php // Closes .postbox-container ?>
 			</div> <?php // Closes #dashboard-widgets .metabox-holder ?>
@@ -670,125 +587,11 @@ function psn_manage() {
 <?php
 }
 
-// Handles the notes management page and form
-function psn_notes_manage( $args ) {
-	global $wpdb;
-	
-	$updateaction = !empty($_REQUEST['updateaction']) ? $_REQUEST['updateaction'] : '';
-	$noteID = !empty($_REQUEST['noteID']) ? $_REQUEST['noteID'] : '';
-	
-	if ( isset($_REQUEST['action']) ) : 
-		
-		if ( $_REQUEST['action'] == 'delete_note' ) {
-			
-			if ( ! is_admin() ) {
-				$nonce = $_REQUEST['_wpnonce'];
-				if( ! wp_verify_nonce( $nonce, 'psnotes-note-delete' ) ) die( 'Are you sure you want to do this?' );
-			} else {
-				check_admin_referer( 'psnotes-note-delete' );
-			}
-			
-			$noteID = intval($_GET['noteID']);
-			if (empty($noteID)) {
-				?><div class="error"><p><strong>Failure:</strong> No notes ID given. Successfully emptied the nothing.</p></div><?php
-			} else {
-				$wpdb->query("DELETE FROM " . $wpdb->prefix . "notes WHERE noteID = '" . $noteID . "'");
-				$sql = "SELECT noteID FROM " . $wpdb->prefix . "notes WHERE noteID = '" . $noteID . "'";
-				$check = $wpdb->get_results($sql);
-				if ( empty($check) || empty($check[0]->noteID) )
-				{
-					?><div class="updated"><p>Note ID <?php echo $noteID; ?> deleted successfully.</p></div><?php
-				}
-				else
-				{
-					?><div class="error"><p><strong>Failure:</strong></p></div><?php
-				}
-			}
-		} // end delete_note block
-	endif;
-	
-	if ( $updateaction == 'update_note' ) {
-		
-		if ( ! is_admin() ) {
-			$nonce = $_REQUEST['_wpnonce'];
-			if( ! wp_verify_nonce( $nonce, 'psnotes-note-submit' ) ) die( 'Are you sure you want to do this?' );
-		} else {
-			check_admin_referer( 'psnotes-note-submit' );
-		}
-		
-		$title = !empty($_REQUEST['note_title']) ? $_REQUEST['note_title'] : '';
-		$authorID = !empty($_REQUEST['note_authorID']) ? $_REQUEST['note_authorID'] : '';
-		$content = !empty($_REQUEST['note_content']) ? $_REQUEST['note_content'] : '';
-		$parentpostID = !empty($_REQUEST['note_ppostID']) ? $_REQUEST['note_ppostID'] : '';
-		
-		if ( empty($noteID) ) {
-			?><div class="error"><p><strong>Failure:</strong> No note ID provided. I can't save what doesn't exist.</p></div><?php
-		} else {
-			$sql = "UPDATE " . $wpdb->prefix . "notes SET notes_title = '" . $title . "', notes_authorID = '" . $authorID . "', notes_content = '" . $content . "', notes_parentPostID = '" . $parentpostID . "' WHERE noteID = '" . $noteID . "'";
-			$wpdb->get_results($sql);
-			$sql = "SELECT noteID FROM " . $wpdb->prefix . "notes WHERE notes_title = '" . $title . "' and notes_authorID = '" . $authorID . "' and notes_content = '" . $content . "' and notes_parentPostID = '" . $parentpostID . "' LIMIT 1";
-			$check = $wpdb->get_results($sql);
-			if ( empty($check) || empty($check[0]->noteID) ) {
-				?><div class="error"><p><strong>Failure:</strong> I couldn't update your entry. Perhaps try again?</p></div><?php
-			} else {
-				?><div class="updated"><p>Note <?php echo $noteID; ?> updated successfully.</p></div><?php
-			}
-		}
-	} // end update_note block
-	
-	elseif ( $updateaction == 'add_note' ) {
-		
-		if ( ! is_admin() ) {
-			$nonce = $_REQUEST['_wpnonce'];
-			if( ! wp_verify_nonce( $nonce, 'psnotes-note-submit' ) ) die( 'Are you sure you want to do this?' );
-		} else {
-			check_admin_referer( 'psnotes-note-submit' );
-		}
-		
-		$title = !empty($_REQUEST['note_title']) ? $_REQUEST['note_title'] : '';
-		$authorID = !empty($_REQUEST['note_authorID']) ? $_REQUEST['note_authorID'] : '';
-		$date = !empty($_REQUEST['note_date']) ? $_REQUEST['note_date'] : '';
-		$content = !empty($_REQUEST['note_content']) ? $_REQUEST['note_content'] : '';
-		$parentpostID = !empty($_REQUEST['note_ppostID']) ? $_REQUEST['note_ppostID'] : '';
-		
-		$sql = "INSERT INTO " . $wpdb->prefix . "notes SET notes_title = '" . $title . "', notes_authorID = '" . $authorID . "', notes_date = '" . $date . "', notes_content = '" . $content . "', notes_parentPostID = '" . $parentpostID . "'";
-		$wpdb->get_results($sql);
-		$sql = "SELECT noteID FROM " . $wpdb->prefix . "notes WHERE notes_title = '" . $title . "' and notes_authorID = '" . $authorID . "' and notes_date = '" . $date . "' and notes_content = '" . $content . "' and notes_parentPostID = '" . $parentpostID . "'";
-		$check = $wpdb->get_results($sql);
-		if ( empty($check) || empty($check[0]->noteID) )
-		{
-			?><div class="error"><p><strong>Failure:</strong> Oh hum, nothing happened. Try again? </p></div><?php
-		}
-		else
-		{
-			?><div class="updated"><p>Super! Note saved.</p></div><?php
-		}
-	} // end add_note block
-	?>
-
-	<div class="wrap">
-	<?php
-	if ( $_REQUEST['action'] == 'edit_note' ) { ?>
-		<h2><?php _e('Edit Note'); ?></h2>
-		<?php
-		if ( empty($noteID) ) {
-			echo "<div class=\"error\"><p>I didn't get an entry identifier from the request. Stopping here.</p></div>";
-		} else {			
-			psn_notes_editform('mode=update_note&noteID=' . $noteID . '');
-		}
-	} else {
-		if ( is_admin() ) {
-			psn_notes_displaylist();
-		} else { 
-			psn_notes_editform($args);
-		}
-	}
-	?>
-	</div>
-<?php 
-}
-
-// Displays the list of notes entries
+/**
+ * Prints the All Notes list of notes entries
+ *
+ * @uses class BBG_CPT_Sort()
+ */
 function psn_notes_displaylist() {
 	global $wpdb;
 	
@@ -909,340 +712,43 @@ function psn_notes_displaylist() {
 		</table>
 	<?php else : ?>		
 		<p><?php _e("There are no notes in existence yet."); ?></p>
-	<?php endif;
-}
-
-// Displays the add/edit form
-function psn_notes_editform( $args ) {
-	global $wpdb, $current_user;
-	$data = false;
-	$psn_settings = get_option('psn_settings');
+	<?php endif; ?>
 	
-	// Set default values
-	$defaults = array (
-		'notebefore' => '<form name="notesform" id="psnotesform" class="wrap" method="post" action="">',
-		'noteafter' => '</form>',
-		'titletype' => $psn_settings['noteform_titletype'],
-		'notetitle' => $psn_settings['noteform_notetitle'],
-		'titlesize' => 45,
-		'showsubmit' => true,
-		'mode' => 'add_note',
-		'noteID' => false,
-		'allowrepeats' => $psn_settings['noteform_repeats'],
-		'norepeats_msg' => $psn_settings['noteform_norepeats_msg'],
-		'char_limit' => (int) $psn_settings['noteform_charlimit'],
-		'textarea_rows' => 10,
-		'textarea_cols' => (int) $psn_settings['noteform_width'],
-	);
-	// Parse incoming $args into an array and merge with $defaults
-	$args = wp_parse_args( $args, $defaults );
-	// Declare each $args item as individual variable
-	extract( $args, EXTR_SKIP );
-	
-	global $current_user;
-	get_currentuserinfo();
-	
-	if ( $noteID !== false )
-	{
-		if ( intval($noteID) != $noteID )
-		{
-			echo "<div class=\"error\">Not a valid ID!</div>";
-			return;
-		}
-		else
-		{
-			$data = $wpdb->get_results("SELECT * FROM " . $wpdb->prefix . "notes WHERE noteID = '" . $noteID . " LIMIT 1'");
-			if ( empty($data) )
-			{
-				echo "<div class=\"error\"><p>Sorry. I could not find a note with that ID.</p></div>";
-				return;
-			}
-			$data = $data[0];
-		}	
-	}	
-	psn_get_admin_options();
-	
-	$parentp_id = get_the_ID();
-	$author_id = get_current_user_id();
-	$notedata = psn_get_notes_by_meta( $parentp_id, $author_id, $num );
-
-	// Filtering to use variables in the noteform_notetitle value
-	if ( empty($data) ) { 
-		$name = $current_user->display_name;
-		$source_title = get_the_title($parentp_id);
-		$first = $current_user->first_name;
-		$last = $current_user->last_name;
-		$date = date_i18n('F j, Y');	
-	
-		$replace_these	= array('%%USER_NAME%%', '%%SOURCE_PAGE_TITLE%%', '%%FIRST%%', '%%LAST%%', '%%DATE%%');
-		$with_these		= array($name, $source_title, $first, $last, $date);
-		$hidden_title = str_replace($replace_these, $with_these, $notetitle);
-	}
-	// Filtering to allow rudimentary BBCode formatting in some messages defined in Settings
-	$bbcode_in = array('[b]', '[/b]', '[i]', '[/i]', '[s]', '[/s]');
-	$html_out = array('<strong>', '</strong>', '<em>', '</em>', '<del>', '</del>');
-	$norepeats_msg = str_replace($bbcode_in, $html_out, $norepeats_msg);
-	
-	/* Checks to see if user has already submitted a 'note' for this page; displays note form if not */
-	if ( $allowrepeats != 1 && !empty( $notedata ) ) :
-		echo '<div class="updated"><p>' . $norepeats_msg .'</p></div>';							
-	else : /* Note not submitted by this user yet, so display the form */ ?>
-		<!-- Beginning of note adding form -->
-		<?php echo $notebefore; ?>
-			<?php wp_nonce_field( 'psnotes-note-submit' ); ?>
-			<input type="hidden" name="updateaction" value="<?php echo $mode?>" />
-			<input type="hidden" name="noteID" value="<?php echo $noteID?>" />
-			<input type="hidden" name="note_ppostID" value="<?php if ( !empty($data) ) {echo htmlspecialchars($data->notes_parentPostID);} else {the_ID();} ?>" />
-			<div id="titlediv">
-				<input type="hidden" id="date" name="note_date" value="<?php if ( !empty($data) ) { echo htmlspecialchars($data->notes_date); } else { echo date_i18n('F j, Y'); } ?>" />			
-				<input type="hidden" name="note_authorID" value="<?php if ( !empty($data) ) { echo htmlspecialchars($data->notes_authorID);} else {echo $current_user->ID;} ?>" />
-				<?php if ( $titletype == 'text' ) { ?>
-					<label for="note_title"><?php _e('Title'); ?></label>
-					<input type="<?php echo $titletype; ?>" id="title" name="note_title" class="input" size="<?php echo $titlesize; ?>" value="<?php if ( !empty($data) ) echo htmlspecialchars($data->notes_title); ?>" />				
-				<?php } elseif ( $titletype == 'hidden' ) { ?>
-					<input type="<?php echo $titletype; ?>" id="title" name="note_title" class="input" size="<?php echo $titlesize; ?>" value="<?php if ( !empty($data) ) { echo htmlspecialchars($data->notes_title); } else { echo $hidden_title; } ?>" />
-				<?php } ?>
-			</div><!-- #titlediv -->
-			<div class="postbox" id="notefield">
-				<div class="inside">
-					<textarea name="note_content" id="note-textarea" class="mceEditor input maxlength" rows="<?php echo $textarea_rows; ?>" cols="<?php echo $textarea_cols; ?>"><?php if ( !empty($data) ) echo htmlspecialchars($data->notes_content); ?></textarea>
-					<?php if ( $char_limit > 0 ) { ?>
-						<span class="remaining-char"><span id="psnscript-chars"><?php echo $char_limit; ?></span> character limit.</span>
-					<?php } ?>
-				</div> <?php // closes inside ?>
-			</div> <?php // closes postbox ?>
-			<?php if ( $showsubmit == true ) { ?>
-				<p class="submit"><input type="submit" name="save" class="button-primary" value="Save Note" /></p>
-			<?php } ?>
-		<?php echo $noteafter; ?>
-		<!-- End of note adding form -->	
-	<?php endif;
-}
-
-// Handles the timeline management page and form
-function psn_timeline_manage( $args ) {
-?>
-	<div class="wrap">
-		<?php psn_the_timeline( $args ); ?>
-	</div>
-<?php 
-}
-
-// Process psn_the_timeline_form (in the same manner as the psn_notes_manage function)
-function psn_the_timeline( $args ) {
-	global $wpdb;
-
-	$timelineupdateaction = !empty($_REQUEST['timelineupdateaction']) ? $_REQUEST['timelineupdateaction'] : '';
-	$timelineID = !empty($_REQUEST['timelineID']) ? $_REQUEST['timelineID'] : '';
-	
-	if ( isset($_REQUEST['action']) ):
-		if ( $_REQUEST['action'] == 'delete_chosen_year' ) 
-		{
-			$timelineID = intval($_GET['timelineID']);
-			if (empty($timelineID))
-			{
-				?><div class="error"><p><strong>Failure:</strong> No timeline ID given. Successfully purged the void.</p></div><?php
-			}
-			else
-			{
-				$wpdb->query("DELETE FROM " . $wpdb->prefix . "timelines WHERE timelineID = '" . $timelineID . "'");
-				$sql = "SELECT timelineID FROM " . $wpdb->prefix . "timelines WHERE timelineID = '" . $timelineID . "'";
-				$check = $wpdb->get_results($sql);
-				if ( empty($check) || empty($check[0]->timelineID) )
-				{
-					?><div class="updated"><p>Note Entry <?php echo $timelineID; ?> deleted successfully.</p></div><?php
-				}
-				else
-				{
-					?><div class="error"><p><strong>Failure:</strong></p></div><?php
-				}
-			}
-		} // end delete_note block
-	endif;
-	
-	if ( $timelineupdateaction == 'choose_year' )
-	{
-		$yearauthorID = !empty($_REQUEST['timeline_authorID']) ? $_REQUEST['timeline_authorID'] : '';
-		$yearauthorLast = !empty($_REQUEST['timeline_authorLast']) ? $_REQUEST['timeline_authorLast'] : '';
-		$yearauthorFirst = !empty($_REQUEST['timeline_authorFirst']) ? $_REQUEST['timeline_authorFirst'] : '';
-		$yeardate = !empty($_REQUEST['timeline_date']) ? $_REQUEST['timeline_date'] : '';
-		$yearselected = !empty($_REQUEST['timeline_yearSelected']) ? $_REQUEST['timeline_yearSelected'] : '';
-		$yearparentpostID = !empty($_REQUEST['timeline_ppostID']) ? $_REQUEST['timeline_ppostID'] : '';
-		
-		$sql = "INSERT INTO " . $wpdb->prefix . "timelines SET timelines_authorID = '" . $yearauthorID . "', timelines_authorLast = '" . $yearauthorLast . "', timelines_authorFirst = '" . $yearauthorFirst . "', timelines_date = '" . $yeardate . "', timelines_yearSelected = '" . $yearselected . "', timelines_parentPostID = '" . $yearparentpostID . "'";
-		$wpdb->get_results($sql);
-		$sql = "SELECT timelineID FROM " . $wpdb->prefix . "timelines WHERE timelines_authorID = '" . $yearauthorID . "' and timelines_authorLast = '" . $yearauthorLast . "' and timelines_authorFirst = '" . $yearauthorFirst . "' and timelines_date = '" . $yeardate . "' and timelines_yearSelected = '" . $yearselected . "' and timelines_parentPostID = '" . $yearparentpostID . "'";
-		$check = $wpdb->get_results($sql);
-		if ( empty($check) || empty($check[0]->timelineID) )
-		{
-			?><div class="error"><p><strong>Failure:</strong> Oh hum, nothing happened. Try again? </p></div><?php
-		}
-		else
-		{
-			?><div class="updated"><p>Year saved.</p></div><?php
-		}
-	} // end add_note block
-	?>
-	
-	<?php // now call up the actual forms and tabular data ?>
+	<h3>Maybe exporting things</h3>
+	<p><a href="">Download somthing</a></p>
 	
 	<?php
-	if ( is_admin() ) {
-	?>
-		<div class="wrap">
-			<h2><?php _e('Review Timeline Results'); ?></h2>
-				<?php psn_display_timeline_results(); ?>
-			<h2><?php _e('Timeline'); ?></h2>
-				<?php psn_the_timeline_form( $args ); ?>
-		</div>
-	<?php
-	} else { 
-		psn_the_timeline_form( $args );
-	}
 }
 
-/*
- * Lets have some descriptions...
+
+
+
+/**
+ * Note export administration panel
  *
- * @since 0.9.0
+ * @since 0.9.8
  */
-function psn_the_timeline_form( $args ) {
-	global $wpdb, $current_user;
+// @see wp_wp-admin_export.php
 
-	// Set default values
-	$defaults = array (
-		'timelinebefore' => '<form name="timelineform" id="timelineform" class="wrap" method="post" action="">',
-		'timelineafter'  => '</form>',
-		'showsubmit' 	 => true,
-		'mode' 			 => 'choose_year',
-		'timelineID' 	 => false,
-		'timelinetype' 	 => 'radio',
-		'yr1' 			 => '1650 &#8211; 1700',
-		'yr2' 			 => '1700 &#8211; 1750',
-		'yr3' 			 => '1750 &#8211; 1800',
-		'yr4' 			 => '1800 &#8211; 1850',
-		'yr5' 			 => '1850 &#8211; 1900',
-		'yr6' 			 => '1900 &#8211; 1950',
-		'yr7' 			 => '1950 &#8211; Today',
-	);
 
-	// Parse incoming $args into an array and merge with $defaults
-	$args = wp_parse_args( $args, $defaults );
 
-	// Declare each $args item as individual variable
-	extract( $args, EXTR_SKIP );
 
-	$timelinedata = false;
-	get_currentuserinfo();
-	
-	if ( $timelineID !== false )
-	{
-		if ( intval($timelineID) != $timelineID )
-		{
-			echo "<div class=\"error\">Not a valid ID!</div>";
-			return;
-		}
-		else
-		{
-			$data = $wpdb->get_results("SELECT * FROM " . $wpdb->prefix . "timelines WHERE timelineID = '" . $timelineID . " LIMIT 1'");
-			if ( empty($data) )
-			{
-				echo "<div class=\"error\"><p>Sorry. I could not find a note with that ID.</p></div>";
-				return;
-			}
-			$timelinedata = $timelinedata[0];
-		}	
-	}
-	
-	psn_get_admin_options();
-	
-	?>
-	<!-- Beginning of Note Adding Page -->
-		<?php echo $timelinebefore; ?>
-			<input type="hidden" name="timelineupdateaction" value="<?php echo $mode?>" />	
-		    <div class="timeline-meta">
-				<input type="hidden" name="timelineID" value="<?php echo $timelineID?>" />
-				<input type="hidden" name="timeline_ppostID" value="<?php if ( !empty($timelinedata) ) {echo htmlspecialchars($timelinedata->timelines_parentPostID);} else {the_ID();} ?>" />
-				<input type="hidden" id="timeline-date" name="timeline_date" value="<?php if ( !empty($timelinedata) ) { echo htmlspecialchars($timelinedata->timelines_date); } else { echo date('l, F j, Y'); } ?>" />
-		    </div>
-			<div class="timeline-author">
-				<input type="hidden" name="timeline_authorFirst" value="<?php if ( !empty($timelinedata) ) {echo htmlspecialchars($timelinedata->timelines_authorFirst);} else {echo $current_user->user_firstname;} ?>" />
-				<input type="hidden" name="timeline_authorLast" value="<?php if ( !empty($timelinedata) ) {echo htmlspecialchars($timelinedata->timelines_authorLast);} else {echo $current_user->user_lastname;} ?>" />
-				<input type="hidden" name="timeline_authorID" value="<?php if ( !empty($timelinedata) ) { echo htmlspecialchars($timelinedata->timelines_authorID);} else {echo $current_user->ID;} ?>" />
-			</div>
-				<div class="timeline" id="timeline-<?php echo $timelinetype; ?>">
-					<label for="<?php _e($yr1); ?>"><input id="yr1" name="timeline_yearSelected" type="radio" value="<?php _e($yr1); ?>"/><?php _e($yr1); ?></label>
-					<label for="<?php _e($yr2); ?>"><input id="yr2" name="timeline_yearSelected" type="radio" value="<?php _e($yr2); ?>"/><?php _e($yr2); ?></label>
-					<label for="<?php _e($yr3); ?>"><input id="yr3" name="timeline_yearSelected" type="radio" value="<?php _e($yr3); ?>"/><?php _e($yr3); ?></label>
-					<label for="<?php _e($yr4); ?>"><input id="yr4" name="timeline_yearSelected" type="radio" value="<?php _e($yr4); ?>"/><?php _e($yr4); ?></label>
-					<label for="<?php _e($yr5); ?>"><input id="yr5" name="timeline_yearSelected" type="radio" value="<?php _e($yr5); ?>"/><?php _e($yr5); ?></label>
-					<label for="<?php _e($yr6); ?>"><input id="yr6" name="timeline_yearSelected" type="radio" value="<?php _e($yr6); ?>"/><?php _e($yr6); ?></label>
-					<label for="<?php _e($yr7); ?>"><input id="yr7" name="timeline_yearSelected" type="radio" value="<?php _e($yr7); ?>"/><?php _e($yr7); ?></label>
-				</div>
-			<?php if ( $showsubmit == true ) { ?>
-				<p class="submit">
-					<input type="submit" name="save" class="button-primary" value="Save Year" />
-				</p>
-			<?php } ?>
-		<?php echo $timelineafter; ?>
-	<?php
-}
 
-// This function displays all of the timeline selections made
-function psn_display_timeline_results() 
-{
-	global $wpdb;
-	
-	$years = $wpdb->get_results("SELECT * FROM " . $wpdb->prefix . "timelines ORDER BY timelines_authorLast" );
-	
-	if ( !empty($years) )
-	{
-		?>
-			<table width="100%" cellpadding="3" cellspacing="3" class="widefat post">
-			<thead>
-			<tr>
-				<th scope="col"><?php _e('ID') ?></th>
-				<th scope="col"><?php _e('Date') ?></th>
-				<th scope="col"><?php _e('Year Selected') ?></th>
-				<th scope="col"><?php _e('User') ?></th>
-				<th scope="col"><?php _e('User ID') ?></th>
-				<th scope="col"><?php _e('ParentPost ID') ?></th>
-				<th scope="col"><?php _e('Delete') ?></th>
-			</tr>
-			</thead>
-		<?php
-		$class = '';
-		echo '<tbody>';
-		
-		foreach ( $years as $year )
-		{
-			$class = ($class == 'alternate') ? '' : 'alternate';
-			?>
-			<tr class="<?php echo $class; ?>">
-				<td><?php echo $year->timelineID ? $year->timelineID : 'No ID'; ?></td>
-				<td><?php echo $year->timelines_date ? $year->timelines_date : 'No Date'; ?></td>
-				<td><?php echo $year->timelines_yearSelected ? $year->timelines_yearSelected : 'No Selection'; ?></td>
-				<td><?php echo $year->timelines_authorFirst.' '.$year->timelines_authorLast ? $year->timelines_authorFirst.' '.$year->timelines_authorLast : 'Anonymous'; ?></td>
-				<td><?php echo $year->timelines_authorID ? $year->timelines_authorID : 'No ID'; ?></td>
-				<td><?php echo $year->timelines_parentPostID ? $year->timelines_parentPostID : 'Admin'; ?></td>
-				<td><a href="admin.php?page=<?php echo $_GET['page']; ?>&amp;action=delete_chosen_year&amp;timelineID=<?php echo $year->timelineID;?>" class="delete" onclick="return confirm('Are you sure you want to delete this entry for ever and ever?')"><?php echo __('Delete'); ?></a></td>
-			</tr>
-			<?php
-		}
-		?>
-		</table>
-		<?php
-	}
-	else
-	{
-		?>
-		<p><?php _e("Nobody has selected a year yet.") ?></p>
-		<?php	
-	}
-}
+/**
+ * Note export API
+ *
+ * @since 0.9.8
+ */
+// @see wp_export.php
 
+
+
+
+
+/**
+ * Prints the Admin area Help page
+ */
 function psn_help() { ?>
-
 	<div class="wrap"> 
 		<div id="icon-tools" class="icon32"><br /></div> 
 		<h2>Help</h2>
