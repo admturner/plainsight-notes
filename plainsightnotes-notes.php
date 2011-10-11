@@ -13,6 +13,7 @@
 
 // First do some housekeeping.
 include_once 'plainsightnotes-public.php';
+include_once 'plainsightnotes-admin.php';
 
 define('PSN_NOTES_PAGE', '<psnotes />');
 

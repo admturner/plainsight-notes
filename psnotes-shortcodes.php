@@ -25,20 +25,24 @@ include_once 'plainsightnotes-admin.php';
  * @since 0.9.0
  */
 function shortcode_notes_form( $args ) {
+	$psn_settings = get_option('psn_settings');
+	
 	extract(shortcode_atts(array(
-		'notebefore' => '<form name="notesform" id="notesform" class="wrap" method="post" action="">',
+		'notebefore' => '<form name="notesform" id="psnotesform" class="wrap" method="post" action="">',
 		'noteafter' => '</form>',
-		'titletype' => 'text',
+		'titletype' => $psn_settings['noteform_titletype'],
+		'notetitle' => $psn_settings['noteform_notetitle'],
 		'titlesize' => 45,
 		'showsubmit' => true,
 		'mode' => 'add_note',
 		'noteID' => false,
-		'allowrepeats' => true,
-		'char_limit' => 2500,
+		'allowrepeats' => $psn_settings['noteform_repeats'],
+		'norepeats_msg' => $psn_settings['noteform_norepeats_msg'],
+		'char_limit' => (int) $psn_settings['noteform_charlimit'],
 		'textarea_rows' => 10,
-		'textarea_cols' => 80,
+		'textarea_cols' => (int) $psn_settings['noteform_width'],
      ), $args));
-	
+   	
 	ob_start();
 		psn_notes_manage( $args );
 		$output_string = ob_get_contents();

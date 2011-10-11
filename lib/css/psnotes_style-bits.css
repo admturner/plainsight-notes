@@ -1,0 +1,172 @@
+/* ======
+   Plainsight-notes Plugin Style
+   (from original plainsight theme style.css)
+   ======
+*/
+
+#titlediv label {
+	color: #777;
+	font: 1.4em/1.5em Nobile, 'Lucida Sans', 'Lucida Sans Unicode', Verdana, sans-serif;
+	float: left;
+	margin: 0 0 .75em 0;
+	width: 36px;
+}
+input#title {
+	border: 1px solid #a0a7ae;
+	border-radius: 6px;
+		-webkit-border-radius: 6px;
+		-khtml-border-radius: 6px;
+		-moz-border-radius: 6px;
+		-o-border-radius: 6px;
+	color: #555;
+	float: left;
+	font: 1.4em/1.5em Nobile, 'Lucida Sans', 'Lucida Sans Unicode', Verdana, sans-serif;
+	margin: 0 0 .75em 0;
+	width: 214px;
+}
+#notesform #note-textarea {
+	border: 1px dashed #a0a7ae;
+	/*border-radius: 3px;
+		-webkit-border-radius: 3px;
+		-khtml-border-radius: 3px;
+		-moz-border-radius: 3px;
+		-o-border-radius: 3px;*/
+	color: #444;
+	font: 1.4em/1.5em Nobile, 'Lucida Sans', 'Lucida Sans Unicode', Verdana, sans-serif;
+	height: 140px;width: 316px; margin-bottom:6px;
+}
+#notesform .remaining-char {float:left; clear:both;}
+#notefield {margin-bottom:12px;}
+#notesform span {
+	color: #6a6a6a;
+	font: 1.2em/1.3em Nobile, 'Lucida Sans', 'Lucida Sans Unicode', Verdana, sans-serif;
+}
+#notesform .error, .error {
+	color: #c33;
+	font: bold 1.2em/1.75em Verdana, sans-serif;
+	margin: 0 0 0 1em;
+}
+.timeline {
+	border: 1px solid #ccc;
+	border-radius: 3px;
+		-moz-border-radius: 3px;
+}
+.timeline a {
+	display: block;
+	font-size: 1.4em;
+	line-height: 1.5em;
+}
+.timeline a:hover, .timeline a:focus {
+	background: #09c; color: #fff;
+	outline: none;
+}
+.timeline .year {
+	background: #a0a7ae;
+	color: #fff;
+	font-weight: bold;
+}
+
+/* Read-only timeline */
+.timeline-year {
+	margin: 24px 0;
+	position: relative;
+	top: 0;
+	left: 0;
+}
+.timeline-year p {
+	margin: 0 0 12px 6px;
+}
+.timeline-year span {
+	border-radius: 3px;
+		-moz-border-radius: 3px;
+		-o-border-radius: 3px;
+	padding: 6px;
+	width: 96px;
+	text-align: center;
+}
+.timeline-year span.chosen {
+	color: #E43;
+	background-color: #152E47;
+}
+.timeline-year span.answer {
+	color: #003322;
+	background: #7BC;
+}
+.timeline-year ul.timeline  {
+	list-style-type: none;
+	margin: 0;
+	width: 550px;
+}
+.timeline-year ul.timeline li {
+	border-radius: 3px;
+		-moz-border-radius: 3px;
+		-o-border-radius: 3px;
+	display: inline-block;
+	padding: 3px 4px;
+	width: 68px;
+	text-align: center;
+}
+ul.timeline .correct-year {
+	color: #032;
+	background: #7BC;
+}
+ul.timeline #chosen-year {
+	color: #E43;
+	background-color: #152E47;
+}
+ul.timeline #chosen-year.correct-year {
+	color: #032;
+	background: #7bc;
+}
+ul.timeline li span {
+	background: #7bc;
+	color: #032;
+	position: absolute;
+	top: -9px;
+	left: 0;
+	width: 220px;
+}
+
+#timeline-radio {
+	width: 84px;
+}
+#timeline-radio a {
+	padding: 12px 0;
+	width: 84px;
+	text-align: center;
+}
+#timeline-dropdown {
+	width: 220px; height:41px;
+}
+#timeline-dropdown a {
+	padding: 12px 0 0px 24px; height: 29px;
+}
+#timeline-dropdown span {
+	float: right;
+	margin: -12px 0 0 -42px;
+	height: 41px;
+	width: 42px;
+}
+#timeline-dropdown .timeline-expand {
+	background: url('images/plainsprite-cr.png') -2px -123px no-repeat;
+}
+#timeline-dropdown .timeline-hover {
+	background: url('images/plainsprite-cr.png') -2px -168px no-repeat;
+}
+#timeline-dropdown .timeline-open {
+	background: url('images/plainsprite-cr.png') -2px -212px no-repeat;
+}
+.updated {
+	color: #032;
+	background: #7BC;
+	border: 1px solid #0099cc;
+	border-radius: 6px;
+		-moz-border-radius: 6px;
+		-khtml-border-radius: 6px;
+		-o-border-radius: 6px;
+	-webkit-box-shadow: 2px 2px 4px #dadada;
+	margin: 9px 12px;
+}
+.updated p {
+	margin: 6px 12px;
+}

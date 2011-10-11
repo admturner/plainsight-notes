@@ -49,7 +49,8 @@ function psn_the_note( $args ) {
 			<?php if($date_first==true): ?>
 				<div class="note-meta">
 					<?php if ( $show_avatar == true ) { echo get_avatar($note->notes_authorID, 50); } ?>
-					<p><cite class="note-author"><?php echo $user_info->display_name; ?></cite> commenting on <a href="<?php echo get_permalink($note->notes_parentPostID); ?>" title="<?php _e(get_the_title($note->notes_parentPostID)); ?>"><?php _e(get_the_title($note->notes_parentPostID)); ?></a>  <abbr class="value"><?php echo $note->notes_date; ?></abbr></p>
+					<p><cite class="note-author"><?php echo $user_info->display_name; ?></cite> commenting on <a href="<?php echo get_permalink($note->notes_parentPostID); ?>" title="<?php _e(get_the_title($note->notes_parentPostID)); ?>"><?php _e(get_the_title($note->notes_parentPostID)); ?></a></p>
+					<abbr class="value"><?php echo $note->notes_date; ?></abbr>
 					<?php echo '<' . $title_wrap . ' class="note-title">' . $note->notes_title . '</' . $title_wrap . '>'; ?>
 				</div>
 				<div class="note-content">
@@ -61,7 +62,8 @@ function psn_the_note( $args ) {
 				</div>
 				<div class="note-meta">
 					<?php if ( $show_avatar == true ) { echo get_avatar($note->notes_authorID, 50); } ?>
-					<p><cite class="note-author"><?php echo $user_info->display_name; ?></cite> commenting on <a href="<?php echo get_permalink($note->notes_parentPostID); ?>" title="<?php _e(get_the_title($note->notes_parentPostID)); ?>"><?php _e(get_the_title($note->notes_parentPostID)); ?></a>  <abbr class="value"><?php echo $note->notes_date; ?></abbr></p>
+					<p><cite class="note-author"><?php echo $user_info->display_name; ?></cite> commenting on <a href="<?php echo get_permalink($note->notes_parentPostID); ?>" title="<?php _e(get_the_title($note->notes_parentPostID)); ?>"><?php _e(get_the_title($note->notes_parentPostID)); ?></a></p>
+					<abbr class="value"><?php echo $note->notes_date; ?></abbr>
 					<?php echo '<' . $title_wrap . ' class="note-title">' . $note->notes_title . '</' . $title_wrap . '>'; ?>
 				</div>
 			<?php endif; ?>
@@ -91,12 +93,13 @@ function psn_notes_by_author_id( $args ) {
 		'length' => 'full',
 		'date_first' => true,
 		'show_avatar' => true,
+		'orderby' => $orderby
 	);
 	$args = wp_parse_args( $args, $defaults );
 	extract( $args, EXTR_SKIP );
 	
 	$table_name = $wpdb->prefix . "notes";
-	$entries = psn_get_notes_by_author_id( $author_id, $howmany, $exclude_author );	
+	$entries = psn_get_notes_by_author_id( $author_id, $howmany, $exclude_author, $orderby );	
 	
 	if ( !empty($entries) ) {
 		foreach ( $entries as $entry ) {
@@ -108,7 +111,8 @@ function psn_notes_by_author_id( $args ) {
 					<div class="note-meta">
 						<?php if ( $show_avatar == true ) { echo get_avatar($entry->notes_authorID, 50); } ?>
 						<?php echo '<' . $title_wrap . ' class="note-title">' . $entry->notes_title . '</' . $title_wrap . '>'; ?>
-						<h6 class="meta"><cite class="note-author"><?php echo $user_info->display_name; ?></cite> commenting on <a href="<?php echo get_permalink($entry->notes_parentPostID); ?>" title="<?php _e(get_the_title($entry->notes_parentPostID)); ?>"><?php _e(get_the_title($entry->notes_parentPostID)); ?></a>  <abbr class="value"><?php echo $entry->notes_date; ?></abbr></h6>
+						<h6 class="meta"><cite class="note-author"><?php echo $user_info->display_name; ?></cite> commenting on <a href="<?php echo get_permalink($entry->notes_parentPostID); ?>" title="<?php _e(get_the_title($entry->notes_parentPostID)); ?>"><?php _e(get_the_title($entry->notes_parentPostID)); ?></a></h6>
+						<abbr class="value"><?php echo $entry->notes_date; ?></abbr>
 					</div>
 					<div class="note-content">
 						<p><?php echo nl2br($entry->notes_content); ?></p>
@@ -122,7 +126,7 @@ function psn_notes_by_author_id( $args ) {
 						From <cite class="comment-author"><?php echo $user_info->display_name; ?></cite> on  <a href="<?php echo get_permalink($entry->notes_parentPostID); ?>" title="<?php _e(get_the_title($entry->notes_parentPostID)); ?>"><?php _e(get_the_title($entry->notes_parentPostID)); ?></a>
 					</h4>
 					<blockquote><p><strong><?php _e($entry->notes_title); ?></strong></p></blockquote> 
-					<p><small><?php _e($entry->notes_date); ?></small></p>
+					<abbr class="value"><?php _e($entry->notes_date); ?></abbr>
 				</div>
 			</div><!-- .<?php echo $wrap_class; ?> -->
 			<?php endif; ?>
@@ -163,7 +167,8 @@ function psn_recent_notes( $args ) {
 				<div class="<?php echo $wrap_class; ?>">
 					<div class="note-meta">
 						<?php echo get_avatar($entry->notes_authorID, 50); ?>
-						<p><cite class="note-author"><?php echo $user_info->display_name; ?></cite> commenting on <a href="<?php echo get_permalink($entry->notes_parentPostID); ?>" title="<?php _e(get_the_title($entry->notes_parentPostID)); ?>"><?php _e(get_the_title($entry->notes_parentPostID)); ?></a>  <abbr class="value"><?php echo $entry->notes_date; ?></abbr></p>
+						<p><cite class="note-author"><?php echo $user_info->display_name; ?></cite> commenting on <a href="<?php echo get_permalink($entry->notes_parentPostID); ?>" title="<?php _e(get_the_title($entry->notes_parentPostID)); ?>"><?php _e(get_the_title($entry->notes_parentPostID)); ?></a></p>
+						<abbr class="value"><?php echo $entry->notes_date; ?></abbr>
 						<?php echo '<' . $title_wrap . ' class="note-title">' . $entry->notes_title . '</' . $title_wrap . '>'; ?>
 					</div>
 					<div class="note-content">
@@ -178,7 +183,7 @@ function psn_recent_notes( $args ) {
 						From <cite class="comment-author"><?php echo $user_info->display_name; ?></cite> on  <a href="<?php echo get_permalink($entry->notes_parentPostID); ?>" title="<?php _e(get_the_title($entry->notes_parentPostID)); ?>"><?php _e(get_the_title($entry->notes_parentPostID)); ?></a>
 					</h4>
 					<blockquote><p><strong><?php _e($entry->notes_title); ?></strong></p></blockquote> 
-					<p><small><?php _e($entry->notes_date); ?></small></p>
+					<abbr class="value"><?php _e($entry->notes_date); ?></abbr>
 				</div>
 			</div><!-- .<?php echo $wrap_class; ?> -->
 			<?php endif; ?>
@@ -220,7 +225,8 @@ function psn_notes_by_parent_post_id( $args ) {
 				<div class="note-meta">
 					<?php echo get_avatar($entry->notes_authorID, 50); ?>
 					<?php echo '<' . $title_wrap . ' class="note-title">' . $entry->notes_title . '</' . $title_wrap . '>'; ?>
-					<h6 class="meta"><cite class="note-author"><?php echo $user_info->display_name; ?></cite> commenting on <a href="<?php echo get_permalink($entry->notes_parentPostID); ?>" title="<?php _e(get_the_title($entry->notes_parentPostID)); ?>"><?php _e(get_the_title($entry->notes_parentPostID)); ?></a>  <abbr class="value"><?php echo $entry->notes_date; ?></abbr></h6>
+					<h6 class="meta"><cite class="note-author"><?php echo $user_info->display_name; ?></cite> commenting on <a href="<?php echo get_permalink($entry->notes_parentPostID); ?>" title="<?php _e(get_the_title($entry->notes_parentPostID)); ?>"><?php _e(get_the_title($entry->notes_parentPostID)); ?></a></h6>
+					<abbr class="value"><?php echo $entry->notes_date; ?></abbr>
 				</div>
 				<?php 
 				if ( $excerpt == false ) { ?>
@@ -263,10 +269,12 @@ function psn_notes_by_parent_post_id( $args ) {
  * @param ...
  */
 function psn_notes_by_meta( $args ) {
-	global $wpdb;
+	global $wpdb, $current_user;
+	get_currentuserinfo();
+	
 	$defaults = array(
 		'parentp_id' => (int) $parentp_id,
-		'author_id' => (int) $author_id,
+		'author_id' => '',
 		'howmany' => (int) $howmany,
 		'wrap_class' => 'note',
 		'title_wrap' => 'h4',
@@ -274,6 +282,10 @@ function psn_notes_by_meta( $args ) {
 	);
 	$args = wp_parse_args( $args, $defaults );
 	extract( $args, EXTR_SKIP );
+	
+	if ( empty($author_id) ) {
+		$author_id = get_current_user_id();
+	}
 	
 	$table_name = $wpdb->prefix . "notes";
 	$entries = psn_get_notes_by_meta( $parentp_id, $author_id, $howmany );
@@ -286,7 +298,8 @@ function psn_notes_by_meta( $args ) {
 			<div class="<?php echo $wrap_class; ?>">
 				<div class="note-meta">
 					<?php echo get_avatar($entry->notes_authorID, 50); ?>
-					<p><cite class="note-author"><?php echo $user_info->display_name; ?></cite> commenting on <a href="<?php echo get_permalink($entry->notes_parentPostID); ?>" title="<?php _e(get_the_title($entry->notes_parentPostID)); ?>"><?php _e(get_the_title($entry->notes_parentPostID)); ?></a>  <abbr class="value"><?php echo $entry->notes_date; ?></abbr></p>
+					<p><cite class="note-author"><?php echo $user_info->display_name; ?></cite> commenting on <a href="<?php echo get_permalink($entry->notes_parentPostID); ?>" title="<?php _e(get_the_title($entry->notes_parentPostID)); ?>"><?php _e(get_the_title($entry->notes_parentPostID)); ?></a></p>
+					<abbr class="value"><?php echo $entry->notes_date; ?></abbr>
 					<?php echo '<' . $title_wrap . ' class="note-title">' . $entry->notes_title . '</' . $title_wrap . '>'; ?>
 				</div>
 				<div class="note-content">
