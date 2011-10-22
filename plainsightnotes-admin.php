@@ -3,7 +3,7 @@
 Plugin Name: PlainSight Notes
 Plugin URI: http://chnm.gmu.edu/hiddeninplainsight/
 Description: A plugin allowing note fields for users to save text to be retrieved elsewhere.
-Version: 0.9.8
+Version: 0.9.9
 Author: Adam Turner 
 Author URI: http://adamturner.org/
 License: GPL2
@@ -27,9 +27,9 @@ License: GPL2
 
 // Plugin Version
 global $plainsightnotes_version;
-$plainsightnotes_version= "0.9.7";
+$plainsightnotes_version= "0.9.9";
 global $psn_db_version;
-$psn_db_version = "1.0";
+$psn_db_version = "2.0";
 
 register_activation_hook( __FILE__, 'plainsightnotes_install' );
 
@@ -145,34 +145,36 @@ function _plainsightnotes_install() {
 		 	 `notes_date` TEXT NOT NULL,
 		 	 `notes_content` TEXT NOT NULL,
 		 	 `notes_parentPostID` INT(11) NOT NULL,
+		 	 `note_status` VARCHAR(11) NOT NULL,
 		 	 PRIMARY KEY  (`noteID`)
 		 	 )";
-
+		
 	    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
 	    dbDelta($sql);
 	    
 	    add_option("psn_db_version", $psn_db_version);
+	} 
 
-		// Check for updates to the database?	    
-	    $installed_ver = get_option( "psn_db_version" );
-
-   		if( $installed_ver != $psn_db_version ) {
-			$sql = "CREATE TABLE " . $notes_table_name . " (
-		 		`noteID` INT(11) NOT NULL AUTO_INCREMENT,
-		 	 	`notes_title` TEXT NOT NULL, 
-		 	 	`notes_authorID` INT NOT NULL,
-			 	`notes_date` TEXT NOT NULL,
-			 	`notes_content` TEXT NOT NULL,
-			 	`notes_parentPostID` INT(11) NOT NULL,
-		 		PRIMARY KEY  (`noteID`)
-		 	 	)";
-		
-			require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-			dbDelta($sql);
+	// Check for updates to the database?	    
+   $installed_ver = get_option( "psn_db_version" );
 	
-			update_option( "psn_db_version", $psn_db_version );
-  		}
-	}
+	if( $installed_ver != $psn_db_version ) {
+		$sql = "CREATE TABLE " . $notes_table_name . " (
+	 		`noteID` INT(11) NOT NULL AUTO_INCREMENT,
+	 	 	`notes_title` TEXT NOT NULL, 
+	 	 	`notes_authorID` INT NOT NULL,
+		 	`notes_date` TEXT NOT NULL,
+		 	`notes_content` TEXT NOT NULL,
+		 	`notes_parentPostID` INT(11) NOT NULL,
+	 	 	`note_status` VARCHAR(11) NOT NULL,
+	 	 	PRIMARY KEY  (`noteID`)
+	 	 	)";
+	
+		require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+		dbDelta($sql);
+
+		update_option( "psn_db_version", $psn_db_version );
+  	}
 	
 	// Check if timelines table exists:
 	if ( $wpdb->get_var("SHOW TABLES LIKE '$timelines_table_name'") != $timelines_table_name ) {
@@ -257,6 +259,8 @@ function psns_admin_menu() {
 	$help = add_submenu_page('plainsightnotes', 'PS Notes | Help', 'Help', 'delete_others_posts', 'help', 'psn_help');
 	$plainsightnotesPages = array($psnManage, $notes, /*$timeline,*/ $help);
 	
+	add_management_page( __('PS Notes Export','ps-notes-export'), __('PS Notes Export','ps-notes-export'), 'manage_options', '', 'psnadmin_export' );	
+	
 	foreach( $plainsightnotesPages as $page ) {
 		add_action('admin_print_styles-' . $page, 'psn_admin_stuff');
 	}
@@ -315,9 +319,9 @@ function psn_notes_manage( $args ) {
 				$sql = "SELECT noteID FROM " . $wpdb->prefix . "notes WHERE noteID = '" . $noteID . "'";
 				$check = $wpdb->get_results($sql);
 				if ( empty($check) || empty($check[0]->noteID) ) {
-					?><div class="updated"><p>Note ID <?php echo $noteID; ?> deleted successfully.</p></div><?php
+					?><div id="message" class="updated"><p>Note ID <?php echo $noteID; ?> deleted successfully.</p></div><?php
 				} else {
-					?><div class="error"><p><strong>Failure:</strong></p></div><?php
+					?><div id="message" class="error"><p><strong>Failure:</strong></p></div><?php
 				}
 			}
 		} // end delete_note block
@@ -336,18 +340,19 @@ function psn_notes_manage( $args ) {
 		$authorID = !empty($_REQUEST['note_authorID']) ? $_REQUEST['note_authorID'] : '';
 		$content = !empty($_REQUEST['note_content']) ? $_REQUEST['note_content'] : '';
 		$parentpostID = !empty($_REQUEST['note_ppostID']) ? $_REQUEST['note_ppostID'] : '';
+		$status = !empty($_REQUEST['status']) ? $_REQUEST['status'] : '';
 		
 		if ( empty($noteID) ) {
-			?><div class="error"><p><strong>Failure:</strong> No note ID provided. I can't save what doesn't exist.</p></div><?php
+			?><div id="message" class="error"><p><strong>Failure:</strong> No note ID provided. I can't save what doesn't exist.</p></div><?php
 		} else {
-			$sql = "UPDATE " . $wpdb->prefix . "notes SET notes_title = '" . $title . "', notes_authorID = '" . $authorID . "', notes_content = '" . $content . "', notes_parentPostID = '" . $parentpostID . "' WHERE noteID = '" . $noteID . "'";
+			$sql = "UPDATE " . $wpdb->prefix . "notes SET notes_title = '" . $title . "', notes_authorID = '" . $authorID . "', notes_content = '" . $content . "', notes_parentPostID = '" . $parentpostID . "', note_status = '" . $status . "' WHERE noteID = '" . $noteID . "'";
 			$wpdb->get_results($sql);
-			$sql = "SELECT noteID FROM " . $wpdb->prefix . "notes WHERE notes_title = '" . $title . "' and notes_authorID = '" . $authorID . "' and notes_content = '" . $content . "' and notes_parentPostID = '" . $parentpostID . "' LIMIT 1";
+			$sql = "SELECT noteID FROM " . $wpdb->prefix . "notes WHERE notes_title = '" . $title . "' and notes_authorID = '" . $authorID . "' and notes_content = '" . $content . "' and notes_parentPostID = '" . $parentpostID . "' and note_status = '" . $status . "' LIMIT 1";
 			$check = $wpdb->get_results($sql);
 			if ( empty($check) || empty($check[0]->noteID) ) {
-				?><div class="error"><p><strong>Failure:</strong> I couldn't update your entry. Perhaps try again?</p></div><?php
+				?><div id="message" class="error"><p><strong>Failure:</strong> I couldn't update your entry. Perhaps try again?</p></div><?php
 			} else {
-				?><div class="updated"><p>Note <?php echo $noteID; ?> updated successfully.</p></div><?php
+				?><div id="message" class="updated"><p>Note <?php echo $noteID; ?> updated successfully.</p></div><?php
 			}
 		}
 	} // end update_note block
@@ -366,15 +371,16 @@ function psn_notes_manage( $args ) {
 		$date = !empty($_REQUEST['note_date']) ? $_REQUEST['note_date'] : '';
 		$content = !empty($_REQUEST['note_content']) ? $_REQUEST['note_content'] : '';
 		$parentpostID = !empty($_REQUEST['note_ppostID']) ? $_REQUEST['note_ppostID'] : '';
+		$status = !empty($_REQUEST['status']) ? $_REQUEST['status'] : '';
 		
-		$sql = "INSERT INTO " . $wpdb->prefix . "notes SET notes_title = '" . $title . "', notes_authorID = '" . $authorID . "', notes_date = '" . $date . "', notes_content = '" . $content . "', notes_parentPostID = '" . $parentpostID . "'";
+		$sql = "INSERT INTO " . $wpdb->prefix . "notes SET notes_title = '" . $title . "', notes_authorID = '" . $authorID . "', notes_date = '" . $date . "', notes_content = '" . $content . "', notes_parentPostID = '" . $parentpostID . "', note_status = '" . $status . "'";
 		$wpdb->get_results($sql);
-		$sql = "SELECT noteID FROM " . $wpdb->prefix . "notes WHERE notes_title = '" . $title . "' and notes_authorID = '" . $authorID . "' and notes_date = '" . $date . "' and notes_content = '" . $content . "' and notes_parentPostID = '" . $parentpostID . "'";
+		$sql = "SELECT noteID FROM " . $wpdb->prefix . "notes WHERE notes_title = '" . $title . "' and notes_authorID = '" . $authorID . "' and notes_date = '" . $date . "' and notes_content = '" . $content . "' and notes_parentPostID = '" . $parentpostID . "' and note_status = '" . $status . "'";
 		$check = $wpdb->get_results($sql);
 		if ( empty($check) || empty($check[0]->noteID) ) {
-			?><div class="error"><p><strong>Failure:</strong> Oh hum, nothing happened. Try again? </p></div><?php
+			?><div id="message" class="error"><p><strong>Failure:</strong> Oh hum, nothing happened. Try again? </p></div><?php
 		} else {
-			?><div class="updated"><p>Super! Note saved.</p></div><?php
+			?><div id="message" class="updated"><p>Super! Note saved.</p></div><?php
 		}
 	} // end add_note block
 	?>
@@ -385,7 +391,7 @@ function psn_notes_manage( $args ) {
 		<h2><?php _e('Edit Note'); ?></h2>
 		<?php
 		if ( empty($noteID) ) {
-			echo "<div class=\"error\"><p>I didn't get an entry identifier from the request. Stopping here.</p></div>";
+			echo '<div id="message" class="error"><p>I didn\'t get an entry identifier from the request. Stopping here.</p></div>';
 		} else {			
 			psn_notes_editform('mode=update_note&noteID=' . $noteID . '');
 		}
@@ -436,12 +442,12 @@ function psn_notes_editform( $args ) {
 	
 	if ( $noteID !== false ) {
 		if ( intval($noteID) != $noteID ) {
-			echo "<div class=\"error\">Not a valid ID!</div>";
+			echo '<div id="message" class="error">Not a valid ID!</div>';
 			return;
 		} else {
 			$data = $wpdb->get_results("SELECT * FROM " . $wpdb->prefix . "notes WHERE noteID = '" . $noteID . " LIMIT 1'");
 			if ( empty($data) ) {
-				echo "<div class=\"error\"><p>Sorry. I could not find a note with that ID.</p></div>";
+				echo '<div id="message" class="error"><p>Sorry. I could not find a note with that ID.</p></div>';
 				return;
 			}
 			$data = $data[0];
@@ -498,6 +504,18 @@ function psn_notes_editform( $args ) {
 					<?php } ?>
 				</div> <?php // closes inside ?>
 			</div> <?php // closes postbox ?>
+			
+			<?php if ( is_admin() ) { ?>
+				<p><span class="description">Status:</span> <?php echo ucfirst( htmlspecialchars( $data->note_status ? $data->note_status : 'none' ) ); ?></p>
+				<select name="status">
+					<option value="-1" selected="selected">Update Post Status</option>
+					<option value="drafted">Save Draft</option>
+					<option value="published">Publish</option>
+					<option value="archived">Archive</option>
+					<option value="trashed">Trash</option>
+				</select>
+			<?php } ?>
+			
 			<?php if ( $showsubmit == true ) { ?>
 				<p class="submit"><input type="submit" name="save" class="button-primary" value="Save Note" /></p>
 			<?php } ?>
@@ -601,19 +619,6 @@ function psn_notes_displaylist() {
 	 */
 	$cols = array(
 		array(
-			'name'       => 'noteID',
-			'title'      => 'ID',
-			'css_class'  => 'note-id',
-			'is_default' => true,
-			'default_order' => 'desc'
-		),
-		array(
-			'name'      => 'notes_date',
-			'title'     => 'Date Added',
-			'css_class' => 'date-added',
-			'default_order' => 'desc'
-		),
-		array(
 			'name'       => 'notes_title',
 			'title'      => 'Note Title',
 			'css_class'  => 'note-title'
@@ -623,6 +628,19 @@ function psn_notes_displaylist() {
 			'title'      => 'Creator',
 			'is_sortable' => false,
 			'css_class'  => 'creator'
+		),
+		array(
+			'name'       => 'parenttitle',
+			'title'      => 'Source Page Title',
+			'is_sortable' => false,
+			'css_class'  => 'source-page-title'
+		),
+		array(
+			'name'       => 'noteID',
+			'title'      => 'Note ID',
+			'css_class'  => 'note-id',
+			'is_default' => true,
+			'default_order' => 'desc'
 		),
 		array(
 			'name'        => 'notes_authorID',
@@ -635,22 +653,16 @@ function psn_notes_displaylist() {
 			'css_class'  => 'source-page-id'
 		),
 		array(
-			'name'       => 'parenttitle',
-			'title'      => 'Source Page Title',
-			'is_sortable' => false,
-			'css_class'  => 'source-page-title'
+			'name'      => 'notes_date',
+			'title'     => 'Date Added',
+			'css_class' => 'date-added',
+			'default_order' => 'desc'
 		),
 		array(
 			'name'       => 'edit',
 			'title'      => 'Edit',
 			'is_sortable' => false,
 			'css_class'  => 'edit'
-		),
-		array(
-			'name'       => 'delete',
-			'title'      => 'Delete',
-			'is_sortable' => false,
-			'css_class'  => 'delete'
 		)
 	);
 	
@@ -664,9 +676,22 @@ function psn_notes_displaylist() {
 		'order'     => $sortable->get_order
 	);
 	
+	// Set the counts
+	$all_count = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM " . $wpdb->prefix . "notes WHERE note_status NOT IN ('archived', 'trashed')" ) );
+	$draft_count = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM " . $wpdb->prefix . "notes WHERE note_status='drafted'" ) );
+	$publish_count = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM " . $wpdb->prefix . "notes WHERE note_status='published'" ) );
+	$archive_count = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM " . $wpdb->prefix . "notes WHERE note_status='archived'" ) );
+	$trash_count = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM " . $wpdb->prefix . "notes WHERE note_status='trashed'" ) );
+	
+	// Check which Notes to display
+	if ( isset( $_GET['note_status'] ) ) {
+		$where = "WHERE note_status='" . $_GET['note_status'] . "'";
+	} else {
+		$where = "WHERE note_status NOT IN ('archived', 'trashed')";
+	}
+	
 	// Run query
-	// was: 	$notes = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM " . $wpdb->prefix . "notes ORDER BY " . $orderby . " " . $order . "" ) );
-	$notes = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM " . $wpdb->prefix . "notes ORDER BY " . $query_args['orderby'] . " " . $query_args['order'] . "" ) );
+	$notes = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM " . $wpdb->prefix . "notes " . $where . " ORDER BY " . $query_args['orderby'] . " " . $query_args['order'] . "" ) );
 	
 	// Start the All Notes page ?>
 	<div id="icon-edit" class="icon32 icon32-posts-post">
@@ -675,72 +700,136 @@ function psn_notes_displaylist() {
 	<h2><?php _e('All Notes'); ?><!-- <a href="" class="add-new-h2">Add New</a> --></h2>
 	<br />
 	
+	<ul class="subsubsub">
+		<li class="all"><a href="admin.php?page=notes" class="<?php if ( ! isset( $_GET['note_status'] ) ) { echo 'current'; } ?>">All <span class="count">(<?php echo $all_count; ?>)</span></a> |</li>
+		<li class="drafts"><a href="admin.php?page=notes&amp;note_status=drafted" class="<?php if ( $_GET['note_status'] == 'drafted' ) { echo 'current'; } ?>">Drafts <span class="count">(<?php echo $draft_count; ?>)</span></a> |</li>
+		<li class="published"><a href="admin.php?page=notes&amp;note_status=published" class="<?php if ( $_GET['note_status'] == 'published' ) { echo 'current'; } ?>">Published <span class="count">(<?php echo $publish_count; ?>)</span></a> |</li>
+		<li class="archived"><a href="admin.php?page=notes&amp;note_status=archived" class="<?php if ( $_GET['note_status'] == 'archived' ) { echo 'current'; } ?>">Archived <span class="count">(<?php echo $archive_count; ?>)</span></a> |</li>
+		<li class="trash"><a href="admin.php?page=notes&amp;note_status=trashed" class="<?php if ( $_GET['note_status'] == 'trashed' ) { echo 'current'; } ?>">Trashed <span class="count">(<?php echo $trash_count; ?>)</span></a></li>
+	</ul>
+	
 	<?php // Create table markup
 	if ( ! empty($notes) ) : ?>
-		<table class="wp-list-table widefat fixed posts" cellspacing="0">
-			<thead>
-				<tr>
-				<?php // Boone's Sortable Columns has a Loop syntax similar to WP's Loop
-				if ( $sortable->have_columns() ) {
-					while ( $sortable->have_columns() ) { 
-						$sortable->the_column(); 
-						$sortable->the_column_th();
-					}
-				} ?>
-				</tr>
-			</thead>
-			<tbody>
-				<?php // Here's we do what we normally do with the DB data
-				foreach ( $notes as $note ) {
-					$authorID = $note->notes_authorID ? $note->notes_authorID : 'No ID';
-					$user_info = get_userdata($authorID);
-					$parentID = $note->notes_parentPostID ? $note->notes_parentPostID : 'Admin';
-					$nonce = wp_create_nonce( 'psnotes-note-delete' ); ?>
+		<form id="posts-filter" action="" method="get">
+			<input type="hidden" name="page" class="page_type_notes" value="notes" />
+			<?php wp_nonce_field( 'psnotes-note-delete' ); ?>
+			
+			<div class="tablenav top">
+				<div class="alignleft actions">
+					<select name="action">
+						<option value="-1" selected="selected"><!--Bulk -->Actions</option>
+						<option value="delete_note">Delete</option>
+					</select>
+				</div>
+				<input type="submit" name="" id="doaction" class="button-secondary action" value="Apply" />
+				<br class="clear" />
+			</div>
+			
+			<table class="wp-list-table widefat fixed posts" cellspacing="0">
+				<thead>
 					<tr>
-						<td class="note-id"><?php echo $note->noteID ? $note->noteID : 'No ID'; ?></td>
-						<td class="date-added"><?php echo $note->notes_date ? $note->notes_date : 'No Date'; ?></td>				
-						<td class="note-title"><?php echo $note->notes_title ? $note->notes_title : 'Untitled'; ?></td>
-						<td class="creator"><?php echo $user_info->display_name ? $user_info->display_name : 'Anonymous'; ?></td>
-						<td class="author-id"><?php echo $authorID; ?></td>
-						<td class="source-page-id"><?php echo '<a href="' . get_permalink($parentID) . '" title="Posted from: ' . get_the_title($parentID) . '">' . $parentID . '</a>'; ?></td>
-						<td class="source-page-title"><?php echo '<a href="' . get_permalink($parentID) . '" title="Posted from: ' . get_the_title($parentID) . '">' . get_the_title($parentID) . '</a>'; ?></td>
-						<td class="edit"><a href="admin.php?page=<?php echo $_GET['page']; ?>&amp;action=edit_note&amp;noteID=<?php echo $note->noteID;?>" class="edit"><?php echo __('Edit'); ?></a></td>
-						<td class="delete"><a href="admin.php?page=<?php echo $_GET['page']; ?>&amp;action=delete_note&amp;noteID=<?php echo $note->noteID;?>&amp;_wpnonce=<?php echo $nonce; ?>" class="delete" onclick="return confirm('Are you sure you want to delete this entry for ever and ever?')"><?php echo __('Delete'); ?></a></td>
+						<th scope="col" id="cb" class="manage-column column-cb check-column" style=""><input type="checkbox"></th>
+						<?php // Boone's Sortable Columns has a Loop syntax similar to WP's Loop
+						if ( $sortable->have_columns() ) {
+							while ( $sortable->have_columns() ) { 
+								$sortable->the_column(); 
+								$sortable->the_column_th();
+							}
+						} ?>
 					</tr>
-				<?php } ?>
-			</tbody>
-		</table>
+				</thead>
+				<tbody>
+					<?php // Here's we do what we normally do with the DB data
+					foreach ( $notes as $note ) {
+						$authorID = $note->notes_authorID ? $note->notes_authorID : 'No ID';
+						$user_info = get_userdata($authorID);
+						$parentID = $note->notes_parentPostID ? $note->notes_parentPostID : 'Admin';
+						$nonce = wp_create_nonce( 'psnotes-note-delete' ); ?>
+						<tr>
+							<th scope="row" class="check-column"><input type="checkbox" name="noteID" value="<?php echo $note->noteID ? $note->noteID : 'No ID'; ?>"></th>
+							<td class="note-title"><?php echo $note->notes_title ? $note->notes_title : 'Untitled'; ?></td>
+							<td class="creator"><?php echo $user_info->display_name ? $user_info->display_name : 'Anonymous'; ?></td>
+							<td class="source-page-title"><?php echo '<a href="' . get_permalink($parentID) . '" title="Posted from: ' . get_the_title($parentID) . '">' . get_the_title($parentID) . '</a>'; ?></td>
+							<td class="note-id"><?php echo $note->noteID ? $note->noteID : 'No ID'; ?></td>
+							<td class="author-id"><?php echo $authorID; ?></td>
+							<td class="source-page-id"><?php echo '<a href="' . get_permalink($parentID) . '" title="Posted from: ' . get_the_title($parentID) . '">' . $parentID . '</a>'; ?></td>
+							<td class="date-added"><?php echo $note->notes_date ? $note->notes_date : 'No Date'; ?></td>				
+							<td class="edit"><a href="admin.php?page=<?php echo $_GET['page']; ?>&amp;action=edit_note&amp;noteID=<?php echo $note->noteID;?>" class="edit"><?php echo __('Edit'); ?></a>
+							<br /><span class="description">Status:</span> <?php echo ucfirst( $note->note_status ? $note->note_status : 'none' ); ?></td>
+						</tr>
+					<?php } ?>
+				</tbody>
+			</table>
+		</form>
 	<?php else : ?>		
-		<p><?php _e("There are no notes in existence yet."); ?></p>
-	<?php endif; ?>
-	
-	<h3>Maybe exporting things</h3>
-	<p><a href="">Download somthing</a></p>
-	
-	<?php
+		<br  class="clearer" />
+		<p><?php _e("There are no notes that match that query yet."); ?></p>
+	<?php endif;
 }
-
-
-
 
 /**
  * Note export administration panel
  *
  * @since 0.9.8
  */
-// @see wp_wp-admin_export.php
+function psnadmin_export() {
+	
+	require_once ('admin.php');
 
-
-
-
+	if ( !current_user_can('export') )
+		wp_die(__('You do not have sufficient permissions to export the content of this site.'));
+	
+	/** Load WordPress export API */
+	$title = __('Export');
+	
+	?>
+	
+	<div class="wrap">
+		<?php screen_icon(); ?>
+		<h2><?php echo esc_html( $title ); ?></h2>
+		
+		<p><?php _e('When you click the button below WordPress will create a CSV file for you to save to your computer.'); ?></p>
+		
+		<h3><?php _e( 'Choose what to export' ); ?></h3>
+		
+		<?php require_once('admin-header.php'); ?>
+		
+		<form action="" method="get" id="psn-export-filters">
+			<input type="hidden" name="psndownload" value="true" />
+			<p>
+				<label><input type="radio" name="psncontent" value="all" checked="checked" /> <?php _e( 'All notes' ); ?></label>
+				<span class="description"><?php _e( 'This will contain all of the Notes.' ); ?></span>
+			</p>
+			<?php submit_button( __('Download Export File'), 'secondary' ); ?>
+		</form>
+		
+	</div>
+	
+	<?php include('admin-footer.php');
+}
 
 /**
- * Note export API
+ * Catch requested Notes for export and feed to export API
  *
  * @since 0.9.8
  */
-// @see wp_export.php
-
+function psn_csv_export(){        
+	include_once(WP_PLUGIN_DIR . "/plainsight-notes/psnotes-export.php");
+	
+	if ( isset( $_GET['psndownload'] ) ) {
+		$args = array();
+		
+		if ( ! isset( $_GET['psncontent'] ) || 'all' == $_GET['psncontent'] ) {
+			$args['psncontent'] = 'all';
+		}
+		
+		echo psn_generate_csv( $args );
+		die();
+	}
+}
+if ( isset( $_GET['psndownload'] ) ) {
+	add_action('init', 'psn_csv_export');
+}
 
 
 
@@ -908,6 +997,6 @@ function psn_help() { ?>
 				<li><code>'author_id' =&gt; ''</code></li>
 				<li><code>'message' =&gt; 'Complete Note to continue.'</code></li>
 			</ul>
-	</div><?php // close .wrap ?>
-<?php	
+	</div><?php // close .wrap
 }
+?>

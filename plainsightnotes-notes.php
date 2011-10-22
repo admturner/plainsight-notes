@@ -185,3 +185,4 @@ function notes_page($data) {
 	}
 	return $data;	
 }
+?>
