@@ -44,15 +44,26 @@ function psn_the_note( $args ) {
 	$table_name = $wpdb->prefix . "notes";
 	$note = psn_get_note_by_id( $noteID );
 	$user_info = get_userdata($note->notes_authorID);
-?>
+	$status = $note->note_status;
+	
+	if ( $status == 'published' || $status == 'archived' ) : ?>
 		<div class="<?php echo $wrap_class; ?>">
-			<?php if($date_first==true): ?>
-				<div class="note-meta">
-					<?php if ( $show_avatar == true ) { echo get_avatar($note->notes_authorID, 50); } ?>
-					<p><cite class="note-author"><?php echo $user_info->display_name; ?></cite> commenting on <a href="<?php echo get_permalink($note->notes_parentPostID); ?>" title="<?php _e(get_the_title($note->notes_parentPostID)); ?>"><?php _e(get_the_title($note->notes_parentPostID)); ?></a></p>
-					<abbr class="value"><?php echo $note->notes_date; ?></abbr>
-					<?php echo '<' . $title_wrap . ' class="note-title">' . $note->notes_title . '</' . $title_wrap . '>'; ?>
-				</div>
+			<?php if($date_first==true):
+				
+				$meta = '<div class="note-meta">';
+				if ( $show_avatar == true ) 
+					$meta .= get_avatar( $note->notes_authorID, 50 );
+				$meta .= '<p>';
+				$meta .= '<cite class="note-author">' . $user_info->display_name . '</cite>';
+				$meta .= ' commenting on <a href="' . get_permalink($note->notes_parentPostID) . '" title="'. get_the_title($note->notes_parentPostID) . '">' . get_the_title($note->notes_parentPostID) . '</a>';
+				$meta .= '</p>';
+				$meta .= '<abbr class="value">' . $note->notes_date . '</abbr>';
+				$meta .= '<' . $title_wrap . ' class="note-title">' . $note->notes_title . '</' . $title_wrap . '>';
+				$meta .= '</div>';
+				
+				echo $meta; ?>
+				
+				
 				<div class="note-content">
 					<p><?php echo nl2br($note->notes_content); ?></p>
 				</div>
@@ -68,7 +79,7 @@ function psn_the_note( $args ) {
 				</div>
 			<?php endif; ?>
 		</div><!-- .<?php echo $wrap_class; ?> -->
-<?php 
+	<?php endif;
 }
 
 /**
@@ -102,36 +113,37 @@ function psn_notes_by_author_id( $args ) {
 	$entries = psn_get_notes_by_author_id( $author_id, $howmany, $exclude_author, $orderby );	
 	
 	if ( !empty($entries) ) {
-		foreach ( $entries as $entry ) {
-			//print_r($entry);
-			$user_info = get_userdata($entry->notes_authorID);
-		?>
-			<?php if ( !is_admin() ) : ?>
-				<div class="<?php echo $wrap_class; ?>">
-					<div class="note-meta">
-						<?php if ( $show_avatar == true ) { echo get_avatar($entry->notes_authorID, 50); } ?>
-						<?php echo '<' . $title_wrap . ' class="note-title">' . $entry->notes_title . '</' . $title_wrap . '>'; ?>
-						<h6 class="meta"><cite class="note-author"><?php echo $user_info->display_name; ?></cite> commenting on <a href="<?php echo get_permalink($entry->notes_parentPostID); ?>" title="<?php _e(get_the_title($entry->notes_parentPostID)); ?>"><?php _e(get_the_title($entry->notes_parentPostID)); ?></a></h6>
-						<abbr class="value"><?php echo $entry->notes_date; ?></abbr>
-					</div>
-					<div class="note-content">
-						<p><?php echo nl2br($entry->notes_content); ?></p>
-					</div>
-				</div><!-- .<?php echo $wrap_class; ?> -->
-			<?php else : ?>
-				<div class="<?php echo $wrap_class; ?>">
-				<div class="note-wrap">
-					<h4 class="note-meta">
-						<?php if ( $show_avatar == true ) { echo get_avatar($note->notes_authorID, 50); } ?>
-						From <cite class="comment-author"><?php echo $user_info->display_name; ?></cite> on  <a href="<?php echo get_permalink($entry->notes_parentPostID); ?>" title="<?php _e(get_the_title($entry->notes_parentPostID)); ?>"><?php _e(get_the_title($entry->notes_parentPostID)); ?></a>
-					</h4>
-					<blockquote><p><strong><?php _e($entry->notes_title); ?></strong></p></blockquote> 
-					<abbr class="value"><?php _e($entry->notes_date); ?></abbr>
-				</div>
-			</div><!-- .<?php echo $wrap_class; ?> -->
-			<?php endif; ?>
-		<?php 
-		}
+		foreach ( $entries as $note ) {
+			//print_r($note);
+			$user_info = get_userdata($note->notes_authorID);
+			$status = $note->note_status;
+			if ( $status == 'published' || $status == 'archived' ) : 
+				if ( !is_admin() ) : ?>
+					<div class="<?php echo $wrap_class; ?>">
+						<div class="note-meta">
+							<?php if ( $show_avatar == true ) { echo get_avatar($note->notes_authorID, 50); } ?>
+							<?php echo '<' . $title_wrap . ' class="note-title">' . $note->notes_title . '</' . $title_wrap . '>'; ?>
+							<h6 class="meta"><cite class="note-author"><?php echo $user_info->display_name; ?></cite> commenting on <a href="<?php echo get_permalink($note->notes_parentPostID); ?>" title="<?php _e(get_the_title($note->notes_parentPostID)); ?>"><?php _e(get_the_title($note->notes_parentPostID)); ?></a></h6>
+							<abbr class="value"><?php echo $note->notes_date; ?></abbr>
+						</div>
+						<div class="note-content">
+							<p><?php echo nl2br($note->notes_content); ?></p>
+						</div>
+					</div><!-- .<?php echo $wrap_class; ?> -->
+				<?php else : ?>
+					<div class="<?php echo $wrap_class; ?>">
+						<div class="note-wrap">
+							<h4 class="note-meta">
+								<?php if ( $show_avatar == true ) { echo get_avatar($note->notes_authorID, 50); } ?>
+								From <cite class="comment-author"><?php echo $user_info->display_name; ?></cite> on  <a href="<?php echo get_permalink($note->notes_parentPostID); ?>" title="<?php _e(get_the_title($note->notes_parentPostID)); ?>"><?php _e(get_the_title($note->notes_parentPostID)); ?></a>
+							</h4>
+							<blockquote><p><strong><?php _e($note->notes_title); ?></strong></p></blockquote> 
+							<abbr class="value"><?php _e($note->notes_date); ?></abbr>
+						</div>
+					</div><!-- .<?php echo $wrap_class; ?> -->
+				<?php endif; // end is_admin()
+			endif; // end status check
+		} // endforeach
 	} else {
 		_e("<p>This person hasn't created any notes yet.</p>");
 	}
@@ -159,36 +171,37 @@ function psn_recent_notes( $args ) {
 	$entries = psn_get_recent_notes( $orderby, $order, $howmany );
 
 	if ( !empty($entries) ) {
-		foreach ( $entries as $entry ) {
-			//print_r($entry);
-			$user_info = get_userdata($entry->notes_authorID);
-		?>
-			<?php if ( !is_admin() ) : ?>
-				<div class="<?php echo $wrap_class; ?>">
-					<div class="note-meta">
-						<?php echo get_avatar($entry->notes_authorID, 50); ?>
-						<p><cite class="note-author"><?php echo $user_info->display_name; ?></cite> commenting on <a href="<?php echo get_permalink($entry->notes_parentPostID); ?>" title="<?php _e(get_the_title($entry->notes_parentPostID)); ?>"><?php _e(get_the_title($entry->notes_parentPostID)); ?></a></p>
-						<abbr class="value"><?php echo $entry->notes_date; ?></abbr>
-						<?php echo '<' . $title_wrap . ' class="note-title">' . $entry->notes_title . '</' . $title_wrap . '>'; ?>
-					</div>
-					<div class="note-content">
-						<p><?php echo nl2br($entry->notes_content); ?></p>
-					</div>
-				</div><!-- .<?php echo $wrap_class; ?> -->
-			<?php else : ?>
-				<div class="<?php echo $wrap_class; ?>">
-				<div class="note-wrap">
-					<h4 class="note-meta">
-						<?php echo get_avatar($entry->notes_authorID, 50); ?>
-						From <cite class="comment-author"><?php echo $user_info->display_name; ?></cite> on  <a href="<?php echo get_permalink($entry->notes_parentPostID); ?>" title="<?php _e(get_the_title($entry->notes_parentPostID)); ?>"><?php _e(get_the_title($entry->notes_parentPostID)); ?></a>
-					</h4>
-					<blockquote><p><strong><?php _e($entry->notes_title); ?></strong></p></blockquote> 
-					<abbr class="value"><?php _e($entry->notes_date); ?></abbr>
-				</div>
-			</div><!-- .<?php echo $wrap_class; ?> -->
-			<?php endif; ?>
-		<?php 
-		}
+		foreach ( $entries as $note ) {
+			//print_r($note);
+			$user_info = get_userdata($note->notes_authorID);
+			$status = $note->note_status;
+			if ( $status == 'published' || $status == 'archived' ) : 
+				if ( !is_admin() ) : ?>
+					<div class="<?php echo $wrap_class; ?>">
+						<div class="note-meta">
+							<?php echo get_avatar($note->notes_authorID, 50); ?>
+							<p><cite class="note-author"><?php echo $user_info->display_name; ?></cite> commenting on <a href="<?php echo get_permalink($note->notes_parentPostID); ?>" title="<?php _e(get_the_title($note->notes_parentPostID)); ?>"><?php _e(get_the_title($note->notes_parentPostID)); ?></a></p>
+							<abbr class="value"><?php echo $note->notes_date; ?></abbr>
+							<?php echo '<' . $title_wrap . ' class="note-title">' . $note->notes_title . '</' . $title_wrap . '>'; ?>
+						</div>
+						<div class="note-content">
+							<?php echo wpautop($note->notes_content); ?>
+						</div>
+					</div><!-- .<?php echo $wrap_class; ?> -->
+				<?php else : ?>
+					<div class="<?php echo $wrap_class; ?>">
+						<div class="note-wrap">
+							<h4 class="note-meta">
+								<?php echo get_avatar($note->notes_authorID, 50); ?>
+								From <cite class="comment-author"><?php echo $user_info->display_name; ?></cite> on  <a href="<?php echo get_permalink($note->notes_parentPostID); ?>" title="<?php _e(get_the_title($note->notes_parentPostID)); ?>"><?php _e(get_the_title($note->notes_parentPostID)); ?></a>
+							</h4>
+							<blockquote><p><strong><?php _e($note->notes_title); ?></strong></p></blockquote> 
+							<abbr class="value"><?php _e($note->notes_date); ?></abbr>
+						</div>
+					</div><!-- .<?php echo $wrap_class; ?> -->
+				<?php endif;
+			endif; // end status check 
+		} // endforeach
 	} else {
 		_e('<p>There are no recently posted notes. Perhaps check back later?</p>');
 	}
@@ -217,43 +230,44 @@ function psn_notes_by_parent_post_id( $args ) {
 	$entries = psn_get_notes_by_parent_post_id( $parentp_id, $howmany, $exclude_author );
 	
 	if ( !empty($entries) ) {
-		foreach ( $entries as $entry ) {
-			//print_r($entry);
-			$user_info = get_userdata($entry->notes_authorID);
-		?>
-			<div class="<?php echo $wrap_class; ?>">
-				<div class="note-meta">
-					<?php echo get_avatar($entry->notes_authorID, 50); ?>
-					<?php echo '<' . $title_wrap . ' class="note-title">' . $entry->notes_title . '</' . $title_wrap . '>'; ?>
-					<h6 class="meta"><cite class="note-author"><?php echo $user_info->display_name; ?></cite> commenting on <a href="<?php echo get_permalink($entry->notes_parentPostID); ?>" title="<?php _e(get_the_title($entry->notes_parentPostID)); ?>"><?php _e(get_the_title($entry->notes_parentPostID)); ?></a></h6>
-					<abbr class="value"><?php echo $entry->notes_date; ?></abbr>
-				</div>
-				<?php 
-				if ( $excerpt == false ) { ?>
-					<div class="note-content">
-						<p><?php echo nl2br($entry->notes_content); ?></p>
+		foreach ( $entries as $note ) {
+			//print_r($note);
+			$user_info = get_userdata($note->notes_authorID);
+			$status = $note->note_status;
+			if ( $status == 'published' || $status == 'archived' ) : ?>
+				<div class="<?php echo $wrap_class; ?>">
+					<div class="note-meta">
+						<?php echo get_avatar($note->notes_authorID, 50); ?>
+						<?php echo '<' . $title_wrap . ' class="note-title">' . $note->notes_title . '</' . $title_wrap . '>'; ?>
+						<h6 class="meta"><cite class="note-author"><?php echo $user_info->display_name; ?></cite> commenting on <a href="<?php echo get_permalink($note->notes_parentPostID); ?>" title="<?php _e(get_the_title($note->notes_parentPostID)); ?>"><?php _e(get_the_title($note->notes_parentPostID)); ?></a></h6>
+						<abbr class="value"><?php echo $note->notes_date; ?></abbr>
 					</div>
-				<?php } else { ?>
-					<div class="note-content">
-						<p>
-							<?php
-							$text = $entry->notes_content;
-							$words = explode(' ', $text, 26);
-							if (count($words)> 25) {
-								array_pop($words);
-								$text = implode(' ', $words);
-								$text = $text . '[...]';
-							} else {
-								$text = implode(' ', $words);
-							}
-							echo $text;
-						?>
-						</p>
-					</div>
-				<?php } ?>
-			</div><!-- .<?php echo $wrap_class; ?> -->
-		<?php 
-		}
+					<?php 
+					if ( $excerpt == false ) { ?>
+						<div class="note-content">
+							<p><?php echo nl2br($note->notes_content); ?></p>
+						</div>
+					<?php } else { ?>
+						<div class="note-content">
+							<p>
+								<?php
+								$text = $note->notes_content;
+								$words = explode(' ', $text, 26);
+								if (count($words)> 25) {
+									array_pop($words);
+									$text = implode(' ', $words);
+									$text = $text . '[...]';
+								} else {
+									$text = implode(' ', $words);
+								}
+								echo $text;
+							?>
+							</p>
+						</div>
+					<?php } ?>
+				</div><!-- .<?php echo $wrap_class; ?> -->
+			<?php endif; // end status check
+		} // endforeach
 	} else {
 		_e('<p>No notes have been posted from <a href="' . get_permalink($parentp_id) . '" title="' . get_the_title($parentp_id) . '">' . get_the_title($parentp_id) . '</a> yet.</p>');
 	}
@@ -288,26 +302,27 @@ function psn_notes_by_meta( $args ) {
 	}
 	
 	$table_name = $wpdb->prefix . "notes";
-	$entries = psn_get_notes_by_meta( $parentp_id, $author_id, $howmany );
+	$entries = psn_get_notes_by_meta( $parentp_id, $author_id, $howmany, $orderby );
 	
 	if ( !empty($entries) ) {
-		foreach ( $entries as $entry ) {
-			//print_r($entry);
-			$user_info = get_userdata($entry->notes_authorID);
-		?>
-			<div class="<?php echo $wrap_class; ?>">
-				<div class="note-meta">
-					<?php echo get_avatar($entry->notes_authorID, 50); ?>
-					<p><cite class="note-author"><?php echo $user_info->display_name; ?></cite> commenting on <a href="<?php echo get_permalink($entry->notes_parentPostID); ?>" title="<?php _e(get_the_title($entry->notes_parentPostID)); ?>"><?php _e(get_the_title($entry->notes_parentPostID)); ?></a></p>
-					<abbr class="value"><?php echo $entry->notes_date; ?></abbr>
-					<?php echo '<' . $title_wrap . ' class="note-title">' . $entry->notes_title . '</' . $title_wrap . '>'; ?>
-				</div>
-				<div class="note-content">
-					<p><?php echo nl2br($entry->notes_content); ?></p>
-				</div>
-			</div><!-- .<?php echo $wrap_class; ?> -->
-		<?php 
-		}
+		foreach ( $entries as $note ) {
+			//print_r($note);
+			$user_info = get_userdata($note->notes_authorID);
+			$status = $note->note_status;
+			if ( $status == 'published' || $status == 'archived' ) : ?>
+				<div class="<?php echo $wrap_class; ?>">
+					<div class="note-meta">
+						<?php echo get_avatar($note->notes_authorID, 50); ?>
+						<p><cite class="note-author"><?php echo $user_info->display_name; ?></cite> commenting on <a href="<?php echo esc_url(get_permalink($note->notes_parentPostID)); ?>" title="<?php _e(get_the_title($note->notes_parentPostID)); ?>"><?php _e(get_the_title($note->notes_parentPostID)); ?></a></p>
+						<abbr class="value"><?php echo $note->notes_date; ?></abbr>
+						<?php echo '<' . $title_wrap . ' class="note-title">' . $note->notes_title . '</' . $title_wrap . '>'; ?>
+					</div>
+					<div class="note-content">
+						<?php echo wpautop($note->notes_content); ?>
+					</div>
+				</div><!-- .<?php echo $wrap_class; ?> -->
+			<?php endif; // end status check
+		} // endforeach
 	} else {
 		$user_info = get_userdata( $author_id );
 		_e('<p>No notes have been posted from <a href="' . get_permalink($parentp_id) . '" title="' . get_the_title($parentp_id) . '">' . get_the_title($parentp_id) . '</a> by '. $user_info->first_name .'.</p>');
@@ -372,7 +387,7 @@ function psn_timeline_by_meta( $args ) {
 	
 	if ( !empty($years) ) {
 		foreach ( $years as $year ) {
-			//print_r($entry);
+			//print_r($note);
 			$chosen = sanitize_title($year->timelines_yearSelected);
 		?>
 			<div class="timeline-year">

@@ -124,17 +124,18 @@ function psn_get_notes_by_parent_post_id( $parentp_id, $howmany, $exclude_author
  * @since 0.9.0
  * @uses $wpdb
  */
-function psn_get_notes_by_meta( $parentp_id, $author_id, $num ) {
+function psn_get_notes_by_meta( $parentp_id, $author_id, $num, $orderby ) {
 	global $wpdb;
 	$parentp_id = (int) $parentp_id;
 	$author_id = (int) $author_id;
-	$num = (int) $num;
+	$num = (int) $num;	
+	$orderby = !empty($orderby) ? $orderby : 'ASC';
 	
 	if ( $num ) {
 		$limit = "LIMIT $num";
 	}
 	$notes_table_name = $wpdb->prefix . "notes";
-	$sql = "SELECT * FROM " . $notes_table_name . " WHERE notes_parentPostID=" . $parentp_id . " AND notes_authorID=" . $author_id . " ORDER BY noteID ASC $limit";
+	$sql = "SELECT * FROM " . $notes_table_name . " WHERE notes_parentPostID=" . $parentp_id . " AND notes_authorID=" . $author_id . " ORDER BY noteID $orderby $limit";
 	
 	return $wpdb->get_results($sql);
 }
@@ -173,8 +174,8 @@ function notes_page($data) {
 		if ( count($entries) > 0 ) {
 			echo '<div id="notes-page-content">';
 			foreach ( $entries as $entry ) {
-				psn_the_note( $entry->noteID );
-			} 
+				psn_the_note( 'noteID=' . $entry->noteID );
+			}
 			echo "</div>";
 		} else {
 			_e('<p>There are no notes at this time. Perhaps you could check back later?</p>');

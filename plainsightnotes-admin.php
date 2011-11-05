@@ -303,6 +303,7 @@ function psn_notes_manage( $args ) {
 	if ( isset($_REQUEST['action']) ) : 
 		
 		if ( $_REQUEST['action'] == 'delete_note' ) {
+			// Check the nonce, and then cycle through the REQUEST $noteID array
 			
 			if ( ! is_admin() ) {
 				$nonce = $_REQUEST['_wpnonce'];
@@ -311,21 +312,56 @@ function psn_notes_manage( $args ) {
 				check_admin_referer( 'psnotes-note-delete' );
 			}
 			
-			$noteID = intval($_GET['noteID']);
-			if (empty($noteID)) {
-				?><div class="error"><p><strong>Failure:</strong> No notes ID given. Successfully emptied the nothing.</p></div><?php
-			} else {
-				$wpdb->query("DELETE FROM " . $wpdb->prefix . "notes WHERE noteID = '" . $noteID . "'");
-				$sql = "SELECT noteID FROM " . $wpdb->prefix . "notes WHERE noteID = '" . $noteID . "'";
-				$check = $wpdb->get_results($sql);
-				if ( empty($check) || empty($check[0]->noteID) ) {
-					?><div id="message" class="updated"><p>Note ID <?php echo $noteID; ?> deleted successfully.</p></div><?php
+			foreach ( $noteID as $id ) {
+				if (empty($id)) {
+					?><div class="error"><p><strong>Failure:</strong> No notes ID given. Successfully emptied the nothing.</p></div><?php
 				} else {
-					?><div id="message" class="error"><p><strong>Failure:</strong></p></div><?php
+					$wpdb->query("DELETE FROM " . $wpdb->prefix . "notes WHERE noteID = '" . $id . "'");
+					$sql = "SELECT noteID FROM " . $wpdb->prefix . "notes WHERE noteID = '" . $id . "'";
+					$check = $wpdb->get_results($sql);
+					if ( empty($check) || empty($check[0]->noteID) ) {
+						if ( count( $noteID ) == 1 ) {
+							echo '<div id="message" class="updated"><p>Note ID ' . $id . ' deleted successfully.</p></div>';
+						}
+					} else {
+						echo '<div id="message" class="error"><p><strong>Failure</strong></p></div>';
+					}
 				}
 			}
 		} // end delete_note block
-	endif;
+		
+		elseif ( $_REQUEST['action'] != 'edit_note' ) { 
+			// Check the nonce, and then cycle through the REQUEST $noteID array	
+			if ( ! is_admin() ) {
+				$nonce = $_REQUEST['_wpnonce'];
+				if( ! wp_verify_nonce( $nonce, 'psnotes-note-delete' ) ) die( 'Are you sure you want to do this?' );
+			} else {
+				check_admin_referer( 'psnotes-note-delete' );
+			}
+			
+			foreach ( $noteID as $id ) {
+				// update note status to whatever was selected
+				$status = !empty($_REQUEST['action']) ? $_REQUEST['action'] : '';
+				
+				if ( empty($id) ) {
+					?><div id="message" class="error"><p><strong>Failure:</strong> No note ID provided. I can't save what doesn't exist.</p></div><?php
+				} else {
+					$sql = "UPDATE " . $wpdb->prefix . "notes SET note_status = '" . $status . "' WHERE noteID = '" . $id . "'";
+					$wpdb->get_results($sql);
+					$sql = "SELECT noteID FROM " . $wpdb->prefix . "notes WHERE note_status = '" . $status . "' LIMIT 1";
+					$check = $wpdb->get_results($sql);
+					if ( empty($check) || empty($check[0]->noteID) ) {
+						?><div id="message" class="error"><p><strong>Failure:</strong> I couldn't update your entry. Perhaps try again?</p></div><?php
+					} else {
+						if ( count( $noteID ) == 1 ) {
+							echo '<div id="message" class="updated"><p>Note ID ' . $id . ' ' . $status . ' successfully.</p></div>';
+						} 
+					}
+				}
+			}
+		}
+		
+	endif; // end 'action' action, proceed with others
 	
 	if ( $updateaction == 'update_note' ) {
 		
@@ -340,7 +376,12 @@ function psn_notes_manage( $args ) {
 		$authorID = !empty($_REQUEST['note_authorID']) ? $_REQUEST['note_authorID'] : '';
 		$content = !empty($_REQUEST['note_content']) ? $_REQUEST['note_content'] : '';
 		$parentpostID = !empty($_REQUEST['note_ppostID']) ? $_REQUEST['note_ppostID'] : '';
-		$status = !empty($_REQUEST['status']) ? $_REQUEST['status'] : '';
+		
+		if ( ! empty($_REQUEST['status']) ) {
+			$status = $_REQUEST['status'];
+		} else { 
+			$status = $_REQUEST['save'] == 'Submit' ? 'published' : 'drafted';
+		}
 		
 		if ( empty($noteID) ) {
 			?><div id="message" class="error"><p><strong>Failure:</strong> No note ID provided. I can't save what doesn't exist.</p></div><?php
@@ -371,7 +412,12 @@ function psn_notes_manage( $args ) {
 		$date = !empty($_REQUEST['note_date']) ? $_REQUEST['note_date'] : '';
 		$content = !empty($_REQUEST['note_content']) ? $_REQUEST['note_content'] : '';
 		$parentpostID = !empty($_REQUEST['note_ppostID']) ? $_REQUEST['note_ppostID'] : '';
-		$status = !empty($_REQUEST['status']) ? $_REQUEST['status'] : '';
+		
+		if ( ! empty($_REQUEST['status']) ) {
+			$status = $_REQUEST['status'];
+		} else { 
+			$status = $_REQUEST['save'] == 'Submit' ? 'published' : 'drafted';
+		}
 		
 		$sql = "INSERT INTO " . $wpdb->prefix . "notes SET notes_title = '" . $title . "', notes_authorID = '" . $authorID . "', notes_date = '" . $date . "', notes_content = '" . $content . "', notes_parentPostID = '" . $parentpostID . "', note_status = '" . $status . "'";
 		$wpdb->get_results($sql);
@@ -440,6 +486,22 @@ function psn_notes_editform( $args ) {
 	global $current_user;
 	get_currentuserinfo();
 	
+	$parentp_id = get_the_ID();
+	$author_id = get_current_user_id();
+	//$orderby = ;
+	$notedata = psn_get_notes_by_meta( $parentp_id, $author_id, $num, 'DESC' );
+	
+	// For now we're only allowing editing the single newest Drafted Note
+	if ( $noteID == false ) {
+		// if latest note status is 'drafted'
+		if ( $notedata[0]->note_status == 'drafted' ) {
+			// set the noteID to the latest note posted by current user from whatever page user is on
+			$noteID = !empty($notedata[0]->noteID) ? $notedata[0]->noteID : false;
+			// since this is a Draft, don't create a new note; set mode to update_note
+			$mode = 'update_note';
+		}
+	}
+	
 	if ( $noteID !== false ) {
 		if ( intval($noteID) != $noteID ) {
 			echo '<div id="message" class="error">Not a valid ID!</div>';
@@ -455,10 +517,6 @@ function psn_notes_editform( $args ) {
 	}
 	psn_get_admin_options();
 	
-	$parentp_id = get_the_ID();
-	$author_id = get_current_user_id();
-	$notedata = psn_get_notes_by_meta( $parentp_id, $author_id, $num );
-
 	// Filtering to use variables in the noteform_notetitle value
 	if ( empty($data) ) { 
 		$name = $current_user->display_name;
@@ -476,12 +534,13 @@ function psn_notes_editform( $args ) {
 	$html_out = array('<strong>', '</strong>', '<em>', '</em>', '<del>', '</del>');
 	$norepeats_msg = str_replace($bbcode_in, $html_out, $norepeats_msg);
 	
-	/* Checks to see if user has already submitted a 'note' for this page; displays note form if not */
-	if ( $allowrepeats != 1 && !empty( $notedata ) ) :
-		echo '<div class="updated"><p>' . $norepeats_msg .'</p></div>';							
-	else : /* Note not submitted by this user yet, so display the form */ ?>
-		<!-- Beginning of note adding form -->
-		<?php echo $notebefore; ?>
+	// Checks to see if user has already published a Note for this page; displays note form if not
+	if ( $allowrepeats != 1 && !empty( $notedata ) && $notedata[0]->note_status != 'drafted' ) :
+		echo '<div class="updated"><p>' . $norepeats_msg .'</p></div>';
+	
+	else : 
+		// Beginning of note adding form
+		echo $notebefore; ?>
 			<?php wp_nonce_field( 'psnotes-note-submit' ); ?>
 			<input type="hidden" name="updateaction" value="<?php echo $mode?>" />
 			<input type="hidden" name="noteID" value="<?php echo $noteID?>" />
@@ -517,7 +576,10 @@ function psn_notes_editform( $args ) {
 			<?php } ?>
 			
 			<?php if ( $showsubmit == true ) { ?>
-				<p class="submit"><input type="submit" name="save" class="button-primary" value="Save Note" /></p>
+				<?php if ( ! is_admin() ) { ?>
+					<p class="save-draft submit"><input type="submit" name="save" id="save-note" value="Save Draft" class="button button-highlighted" /></p>
+				<?php } ?>
+				<p class="submit"><input type="submit" name="save" id="publish-note" value="Submit" class="button-primary" /></p>
 			<?php } ?>
 		<?php echo $noteafter; ?>
 		<!-- End of note adding form -->	
@@ -716,9 +778,15 @@ function psn_notes_displaylist() {
 			
 			<div class="tablenav top">
 				<div class="alignleft actions">
-					<select name="action">
-						<option value="-1" selected="selected"><!--Bulk -->Actions</option>
-						<option value="delete_note">Delete</option>
+					<select class="note-filters" name="action">
+						<option value="-1" selected="selected">Bulk Actions</option>						
+						<option value="published">Publish</option>
+						<option value="drafted">Move to Drafts</option>
+						<option class="archive" value="archived">Move to Archive</option>
+						<option class="trash" value="trashed">Move to Trash</option>
+						<?php if ( $_REQUEST['note_status'] == 'trashed' ) {
+							?><option class="delete" value="delete_note">Delete</option><?php 
+						} ?>
 					</select>
 				</div>
 				<input type="submit" name="" id="doaction" class="button-secondary action" value="Apply" />
@@ -746,7 +814,7 @@ function psn_notes_displaylist() {
 						$parentID = $note->notes_parentPostID ? $note->notes_parentPostID : 'Admin';
 						$nonce = wp_create_nonce( 'psnotes-note-delete' ); ?>
 						<tr>
-							<th scope="row" class="check-column"><input type="checkbox" name="noteID" value="<?php echo $note->noteID ? $note->noteID : 'No ID'; ?>"></th>
+							<th scope="row" class="check-column"><input type="checkbox" name="noteID[]" value="<?php echo $note->noteID ? $note->noteID : 'No ID'; ?>"></th>
 							<td class="note-title"><?php echo $note->notes_title ? $note->notes_title : 'Untitled'; ?></td>
 							<td class="creator"><?php echo $user_info->display_name ? $user_info->display_name : 'Anonymous'; ?></td>
 							<td class="source-page-title"><?php echo '<a href="' . get_permalink($parentID) . '" title="Posted from: ' . get_the_title($parentID) . '">' . get_the_title($parentID) . '</a>'; ?></td>

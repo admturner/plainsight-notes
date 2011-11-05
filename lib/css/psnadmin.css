@@ -3,3 +3,6 @@
 .note .note-meta {color: #999;font-family: Georgia, 'Times New Roman', 'Bitstream Charter', Times, serif;font-weight: normal;	margin: 0px 0px 0.2em;}
 a:link, a:visited {text-decoration: none;}
 #courseinfo ul {list-style:none;margin:0;padding:0;}
+.note-filters .archive { color: #666;}
+.note-filters .trash { color: #bb5b09;}
+.note-filters .delete {color: red;}
