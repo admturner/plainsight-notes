@@ -1,8 +1,51 @@
-.inside .note {border-bottom: 1px solid #ddd;margin: 18px 0 0 0;}
-.inside .note .photo {float: left;margin: 0 12px 0 0;width: 50px;}
-.note .note-meta {color: #999;font-family: Georgia, 'Times New Roman', 'Bitstream Charter', Times, serif;font-weight: normal;	margin: 0px 0px 0.2em;}
-a:link, a:visited {text-decoration: none;}
-#courseinfo ul {list-style:none;margin:0;padding:0;}
-.note-filters .archive { color: #666;}
-.note-filters .trash { color: #bb5b09;}
-.note-filters .delete {color: red;}
+.postbox-container {
+	width: 49%;
+}
+.inside .note {
+	border-bottom: 1px solid #ddd;
+	margin: 18px 0 0 0;
+	clear: both;
+	overflow: hidden;
+}
+.inside .note .photo {
+	float: left;
+	margin: 0 12px 0 0;
+	width: 50px;
+}
+.note .note-meta {
+	color: #999;
+	font-family: Georgia, 'Times New Roman', 'Bitstream Charter', Times, serif;
+	font-weight: normal;	
+	margin: 0px 0px 0.2em;
+}
+.note blockquote {
+	float: left;
+	width: 40%;
+	margin: 0;
+}
+.note abbr {
+	float: left;
+	width: 40%;
+	text-align: right;
+	margin: 1em 0;
+}
+a:link, a:visited {
+	text-decoration: none;
+}
+#courseinfo ul {
+	list-style:none;
+	margin:0;
+	padding:0;
+}
+#the-comment-list p, #the-comment-list code {
+	font-size: 14px;
+}
+.note-filters .archive {
+	color: #666;
+}
+.note-filters .trash {
+	color: #bb5b09;
+}
+.note-filters .delete {
+	color: #f00;
+}

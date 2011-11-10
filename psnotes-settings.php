@@ -14,7 +14,7 @@
  *
  * @since 0.9.7
  * 
- * @todo Clean up (bring everything up to its own line)
+ * @todo Clean up
  */
 class PSNSettings {
 
@@ -35,7 +35,7 @@ class PSNSettings {
 		// Call noteform width field within note_form_group
 		add_settings_field(
 			'note_form_width_id', 
-			'Note Form Width', 
+			'Note form width', 
 			array('PSNSettings', 'note_form_width_control_fn'), 
 			'note_form_settings', 
 			'note_form_group');
@@ -80,6 +80,37 @@ class PSNSettings {
 			'note_form_settings',
 			'note_form_group');
 		
+		// Call noteform send/don't send email confirmation w/in note_form group
+		add_settings_field(
+			'note_form_should_email',
+			'Email copy of published note to',
+			array('PSNSettings', 'note_form_should_email_fn'),
+			'note_form_settings',
+			'note_form_group');
+		
+		// Call noteform email message within note_form group
+		add_settings_field(
+			'note_form_email_msg',
+			'Email message',
+			array('PSNSettings', 'note_form_email_msg_fn'),
+			'note_form_settings',
+			'note_form_group');
+		
+		// Call noteform email recipients within note_form group
+		add_settings_field(
+			'note_form_email_recipients',
+			'Additional email recipients',
+			array('PSNSettings', 'note_form_email_recipients_fn'),
+			'note_form_settings',
+			'note_form_group');
+		
+		add_settings_field(
+			'note_form_reset_options',
+			'Restore defaults on reactivation?',
+			array('PSNSettings', 'note_form_reset_options_fn'),
+			'note_form_settings',
+			'note_form_group');
+			
 		/*
 		Fields for: add_settings_field()
 			'unique ID',
@@ -124,7 +155,6 @@ class PSNSettings {
 			<h4>Future options:</h4>
 			<p>If you have any you'd like to add to the list, please let me know</p>
 			<ol>
-				<li>Don't de-register settings upon plugin deactivation</li>
 				<li>Date/time format (or perhaps just hook into WP date/time option)</li>
 				<li>Height of note form box, in rows</li>
 			</ol>
@@ -244,6 +274,81 @@ class PSNSettings {
 	<?php 
 	}
 	
+	function note_form_should_email_fn() {
+		$psn_settings = get_option('psn_settings');
+		$options = array( 'nobody', 'user only', 'user and additional', 'additional only' );
+		
+		foreach ( $options as $option ) : 
+			$checked = ($psn_settings['noteform_should_email'] == strtolower($option)) ? ' checked="checked" ' : '';
+			?>
+			<label>
+				<input id="noteform_should_email_<?php echo $option; ?>"
+						 name="psn_settings[noteform_should_email]"
+						 class="code"
+						 value="<?php echo $option; ?>"
+						 type="radio"
+						 <?php echo $checked; ?> />
+				<?php echo ucfirst( $option ); ?>
+			</label><br />
+		<?php 
+		endforeach;
+	}
+	
+	function note_form_email_msg_fn() {
+		$psn_settings = get_option('psn_settings');
+		
+		if ( $psn_settings['noteform_should_email'] != 'nobody' ) {
+			?>
+<textarea name="psn_settings[noteform_email_msg]" id="noteform_email_msg" class="text" cols="80" rows="10"><?php echo wp_kses_stripslashes($psn_settings['noteform_email_msg']); ?></textarea><br />
+			<span class="description">Message body to precede Note metadata (author, date, etc.) and content in email.</span>
+		<?php
+		} else {
+			echo '<span class="description">Email not being sent, so message not needed.</span>';
+		}
+	}
+	
+	function note_form_email_recipients_fn() {
+		$psn_settings = get_option('psn_settings');
+		
+		if ( $psn_settings['noteform_should_email'] != 'nobody' ) {
+			?>
+			<span class="description">If you would like to send the results of any quiz to an additional user(s), like a teacher, select from the menu(s) below.</span><br />
+			<label for="psn_settings[recipient_one_email]"><?php _e("Additional recipient one") ?></label>
+			<select name="psn_settings[recipient_one_email]">
+				<option>Choose a user</option>
+				<?php $blogusers = get_users_of_blog();
+				foreach ( $blogusers as $user) : ?>
+					<option value="<?php echo $user->user_email; ?>"<?php if ( $psn_settings['recipient_one_email'] == $user->user_email) echo ' selected="selected"'; ?>><?php echo $user->user_login . ' - '. $user->display_name . ' (' . $user->user_email . ')'; ?></option>
+				<?php endforeach; ?>
+			</select>
+			<br />
+			<label for="psn_settings[recipient_two_email]"><?php _e("Additional recipient two") ?></label>
+			<select name="psn_settings[recipient_two_email]">
+				<option>Choose a user</option>
+				<?php $blogusers = get_users_of_blog();
+				foreach ( $blogusers as $user) : ?>
+					<option value="<?php echo $user->user_email; ?>"<?php if ( $psn_settings['recipient_two_email'] == $user->user_email) echo ' selected="selected"'; ?>><?php echo $user->user_login . ' - '. $user->display_name . ' (' . $user->user_email . ')'; ?></option>
+				<?php endforeach; ?>
+			</select>		
+		<?php
+		} else {
+			echo '<span class="description">Email not being sent, so additional recipients not needed.</span>';
+		}
+	}
+	
+	function note_form_reset_options_fn() {
+		$psn_settings = get_option('psn_settings');
+		?>
+		<input id="noteform_reset" 
+				 name="psn_settings[noteform_reset]" 
+				 type="checkbox" 
+				 class="code" 
+				 value="1" 
+				 <?php checked( $psn_settings['noteform_reset'], 1 ); ?> />
+		<span class="description"><span class="error">Warning:</span> If checked, restores default settings upon plugin deactivation/reactivation.</span>
+		<?php 
+	}
+	
 	/* Validate submitted form data, then return squeaky-clean settings */
 	function validate_fn($input) {
 		$psn_settings = get_option('psn_settings');
@@ -254,52 +359,68 @@ class PSNSettings {
 		} else {
 			add_settings_error('psn_settings', 'settings_updated', __('<em>Note form width:</em> Only integers are accepted. Please use a number.'));
 		}
+
 		// validate noteform titletype as either 'text' or 'hidden'
 		if ($input['noteform_titletype'] == 'Text' || $input['noteform_titletype'] == 'Hidden') { 
 			$psn_settings['noteform_titletype'] = strtolower($input['noteform_titletype']);
 		} else {
-			add_settings_error('psn_settings', 'settings_updated', __('<em>Note form title display:</em> Only 2 options, Text or Hidden, are accepted. Adieu.'));
+			add_settings_error('psn_settings', 'settings_updated', __('<em>Note form title display:</em> Only 2 options, Text or Hidden, are accepted. Please try again.'));
 		}
+
+		// validate noteform should_email as part of array( 'nobody', 'user and additional', 'user only', 'additional only' )
+		$opts = array( 'nobody', 'user and additional', 'user only', 'additional only' );
+		if ( in_array( $input['noteform_should_email'], $opts ) ) {
+			$psn_settings['noteform_should_email'] = strtolower($input['noteform_should_email']);
+		} else {
+			add_settings_error('psn_settings', 'settings_updated', __('<em>Note form email option:</em> Needs to be one of the four given options. Please try again.'));
+		}
+
 		// validate noteform character limit as an integer
 		if (sprintf("%.0f", $input['noteform_charlimit']) == $input['noteform_charlimit']) {
 			$psn_settings['noteform_charlimit'] = $input['noteform_charlimit'];
 		} else {
 			add_settings_error('psn_settings', 'settings_updated', __('<em>Note form character limit:</em> Only integers are accepted. Please use a number.'));
 		}
-		
-		// validate noteform repeats checkbox
+
+		// validate noteform repeats checkbox and reset on reactivation checkbox
 		$psn_settings['noteform_repeats'] = $input['noteform_repeats'];
-		
+		$psn_settings['noteform_reset'] = $input['noteform_reset'];
+
 		// strip html and php tags from input and output noteform data
 		$psn_settings['noteform_notetitle'] = strip_tags($input['noteform_notetitle']);
 		$psn_settings['noteform_norepeats_msg'] = strip_tags($input['noteform_norepeats_msg']);
+		$psn_settings['noteform_email_msg'] = strip_tags($input['noteform_email_msg']);
+
+		// pass along email recipients' email addresses
+		$psn_settings['recipient_one_email'] = $input['recipient_one_email'];
+		$psn_settings['recipient_two_email'] = $input['recipient_two_email'];
 		
 		// And finally, spit out the validated data
 		return $psn_settings;
+	}
+	
+	function add_psnsettings_defaults_fn() {
+		$psn_settings = get_option('psn_settings');
+		if ( $psn_settings['noteform_reset'] != 0 ) {
+			$defaults = array(
+					'noteform_width' => '80',
+					'noteform_titletype' =>	'text',
+					'noteform_notetitle' => 'A Note',
+					'noteform_repeats' => 1,
+					'noteform_charlimit' => '2500',
+					'noteform_norepeats_msg' => 'You have already completed this.',
+					'noteform_should_email' => 'nobody',
+					'noteform_email_msg' => 'This message to the user will precede the Note in the email body.',
+					'noteform_reset' => 0,
+					'recipient_one_email' => '',
+					'recipient_two_email' => ''
+				);
+			update_option( 'psn_settings', $defaults );
+		}
 	}
 } // end PSNSettings class
 
 // Hook settings into the admin init and menu processes
 add_action('admin_init', array('PSNSettings', 'init'));
 add_action('admin_menu', array('PSNSettings', 'admin_menus'));
-
-// Define default option settings
-register_activation_hook(__FILE__, 'add_psnsettings_defaults_fn');
-function add_psnsettings_defaults_fn() {
-    $arr = array(
-    	"noteform_width" => "80", 
-    	"noteform_titletype" => "text", 
-    	"noteform_notetitle" => "A Note", 
-    	"noteform_charlimit" => "2500",
-    	"noteform_norepeats_msg" => "You have already completed this.",
-    	"noteform_repeats" => 1);
-    update_option('psn_settings', $arr);
-}
-
-/* Things to add
-
-Run a de-register settings function on plugin deactivation; 
-and a user option to NOT de-register settings upon deactivation
-
-*/
 ?>

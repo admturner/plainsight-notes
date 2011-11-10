@@ -3,7 +3,7 @@
 Plugin Name: PlainSight Notes
 Plugin URI: http://chnm.gmu.edu/hiddeninplainsight/
 Description: A plugin allowing note fields for users to save text to be retrieved elsewhere.
-Version: 0.9.9
+Version: 1.2.0
 Author: Adam Turner 
 Author URI: http://adamturner.org/
 License: GPL2
@@ -27,7 +27,7 @@ License: GPL2
 
 // Plugin Version
 global $plainsightnotes_version;
-$plainsightnotes_version= "0.9.9";
+$plainsightnotes_version= "1.2.0";
 global $psn_db_version;
 $psn_db_version = "2.0";
 
@@ -43,6 +43,9 @@ include_once 'psnotes-shortcodes.php';
 include_once 'psnotes-settings.php';
 /* add back once using these again:	include_once 'psnotes-timeline.php'; */
 require_once( $plainsightnotes_path . 'lib/boones-sortable-columns.php' );
+
+// Call default settings on activation, unless asked not to: @see psnotes-settings.php 
+register_activation_hook(__FILE__, array('PSNSettings', 'add_psnsettings_defaults_fn'));
 
 if ( isset($_GET['activate']) && $_GET['activate'] == 'true' ) {
 	add_action('init', 'plainsightnotes_install');
@@ -394,6 +397,11 @@ function psn_notes_manage( $args ) {
 				?><div id="message" class="error"><p><strong>Failure:</strong> I couldn't update your entry. Perhaps try again?</p></div><?php
 			} else {
 				?><div id="message" class="updated"><p>Note <?php echo $noteID; ?> updated successfully.</p></div><?php
+				
+				if ( ! is_admin() && $_REQUEST['save'] == 'Submit' ) {
+					psn_email_note( $authorID, $check[0]->noteID );
+				}
+				
 			}
 		}
 	} // end update_note block
@@ -427,7 +435,13 @@ function psn_notes_manage( $args ) {
 			?><div id="message" class="error"><p><strong>Failure:</strong> Oh hum, nothing happened. Try again? </p></div><?php
 		} else {
 			?><div id="message" class="updated"><p>Super! Note saved.</p></div><?php
+			
+			if ( ! is_admin() && $_REQUEST['save'] == 'Submit' ) {
+				psn_email_note( $authorID, $check[0]->noteID );
+			}
+			
 		}
+		
 	} // end add_note block
 	?>
 
@@ -586,6 +600,78 @@ function psn_notes_editform( $args ) {
 	<?php endif;
 }
 
+
+
+/**
+ * Emails Notes published from the front end if option is selected
+ * 
+ * This function will send an email to up to two recipients every
+ * time a user publishes a Note from the front end (it will not 
+ * send emails for drafted Notes or Notes marked as published from
+ * the admin area.
+ *
+ * @since 1.0.1
+ */
+function psn_email_note( $authorID, $noteID ) {
+	$psn_settings = get_option('psn_settings');
+	
+	if ( $psn_settings['noteform_should_email'] != 'nobody' ) {
+		
+		$author = get_userdata( $authorID );
+		$note = psn_get_note_by_id( $noteID );
+		
+		$recipient0 = $author->user_email;
+		$subject = get_bloginfo( 'name' ) . ': ' . $note->notes_title;
+		$headers = "From: " . get_bloginfo( 'name' ). " <" . get_bloginfo( 'admin_email' ) . ">\n";
+		
+		$content = $note->notes_title . "\n";
+		$content .= "By: " . $author->display_name . "\n";
+		$content .= "Published: " . $note->notes_date . ", from \"" . get_the_title( $note->notes_parentPostID ) . "\"\n\n";
+		$content .= $note->notes_content . "\n";
+		
+		$message = stripslashes( $psn_settings['noteform_email_msg'] );
+		
+		$body = $message . "\n\n" . $content . "\n\n";
+		$body .= "--\nThis mail is sent via WordPress and PlainsightNotes on " . get_bloginfo( 'name' ) . ", " . get_bloginfo( 'url' );
+		
+		$body = strip_tags(balanceTags($body));	
+			$search = array('&ldquo;', '&rdquo;');
+			$replace = array('"', '"');		
+		$body = str_replace( $search, $replace, $body );
+		
+		// Now some conditional statements to determine who should receive an email
+		if ( $psn_settings['noteform_should_email'] != 'additional only' ) {
+			
+			// Email note to User
+			/// The WP email function, in order: email address of recipient, subject line, email content, email headers
+			wp_mail( $recipient0, $subject, $body, $headers );
+			
+		} 
+		
+		// Here's the part where we send the additional user's emails
+		if ( $psn_settings['noteform_should_email'] == 'additional only' || $psn_settings['noteform_should_email'] == 'user and additional' ) {
+			$recipient1 = $psn_settings['recipient_one_email'];
+			$recipient2 = $psn_settings['recipient_two_email'];
+			
+			$body = "Note published by " . $author->display_name . ", commenting on \"" . get_the_title( $note->notes_parentPostID ) . "\"\n\n";
+			$body .= $psn_settings['noteform_should_email'] != "user and additional" ? $content : "Email also sent to " . $recipient0 . "\n\n" . $content;
+			$body .= "--\nThis mail is sent via WordPress and PlainsightNotes on " . get_bloginfo( 'name' ) . ", " . get_bloginfo( 'url' );
+			
+			$body = strip_tags(balanceTags($body));	
+				$search = array('&ldquo;', '&rdquo;');
+				$replace = array('"', '"');		
+			$body = str_replace( $search, $replace, $body );
+			
+			if ( $recipient1 ) {
+				wp_mail( $recipient1, $subject, $body, $headers );
+			}
+			if ( $recipient2 ) {
+				wp_mail( $recipient2, $subject, $body, $headers );
+			}
+		}
+	}
+}
+
 /**
  * Prints the Admin area Notes splash page
  */
@@ -601,17 +687,17 @@ function psn_manage() {
 					<div id="normal-sortables" class="meta-box-sortables ui-sortable">		
 						<div id="dashboard_recent_notes" class="postbox">
 							<div class="handlediv" title="Click to toggle"><br /></div>
-							<h3 class="handle"><span>Recent Notes</span></h3>
+							<h3 class="handle"><span>Recently Published Notes</span></h3>
 							<div class="inside">
 								<div id="the-comment-list" class="list:comment">
-									<?php psn_recent_notes( 3 ); ?>
+									<?php psn_recent_notes( 5 ); ?>
 									<p class="textright"><a href="?page=notes" class="button">View All</a></p>
 								</div><?php // Closes #the-comment-list ?>
 							</div> <?php // Closes .inside ?>
 						</div><?php // Closes .postbox #dashboard_recent_notes ?>
 						<div id="dashboard_recent_notes_by_auth" class="postbox">
 							<div class="handlediv" title="Click to toggle"><br /></div>
-							<h3 class="handle"><span>Recent Notes by <?php echo $current_user->display_name; ?> (That's you!)</span></h3>
+							<h3 class="handle"><span>Recent Published by <?php echo $current_user->display_name; ?></span></h3>
 							<div class="inside">
 								<div id="the-recent-list" class="list:comment">
 									<?php psn_notes_by_author_id( 'author_id=' . $current_user->ID . '&howmany=3' ); ?>
@@ -628,9 +714,30 @@ function psn_manage() {
 							<h3 class="handle"><span>PlainSight Notes Settings</span></h3>
 							<div class="inside">
 								<div id="the-comment-list" class="list:comment">
+									<?php 
+									$psn_settings = get_option('psn_settings');
+									$titlefield = $psn_settings['noteform_titletype'] != 'text' ? 'Text: Allow user to enter title' : 'Hidden: Hide title field and use default (below)';
+									$repeatsetting = !empty($psn_settings['noteform_repeats']) ? 'Yes' : 'No';
+									
+									$settings = '<p>Note form width: <code>' . $psn_settings['noteform_width'] . '</code>';
+									$settings .= '<br /><span class="description">The width (in columns) of the Note form text area.</span></p>';
+									$settings .= '<p>Note title field display: <code>' . $titlefield . '</code>';
+									$settings .= '<br /><span class="description">Whether to display the text field for entering a title. If hidden, user cannot enter their own title.</span></p>';
+									$settings .= '<p>Default note title: <code>' . $psn_settings['noteform_notetitle'] . '</code>';
+									$settings .= '<br /><span class="description">The default title to use if the title option is hidden from the user (previous setting).</span></p>';
+									$settings .= '<p>Note character limit: <code>' . $psn_settings['noteform_charlimit'] . '</code>';
+									$settings .= '<br /><span class="description">The character limit for note content.</span></p>';
+									$settings .= '<p>Allow multiple posts per note? <code>' . $repeatsetting . '</code>';
+									$settings .= '<br /><span class="description">Whether to allow users to post multiple notes per user from a given page.</span></p>';
+									$settings .= '<p>Message when note already submitted: <code>' . $psn_settings['noteform_norepeats_msg'] . '</code>';
+									$settings .= '<br /><span class="description">The message displayed after a note is published when multiple posts per note are not allowed.</span></p>';
+									
+									echo $settings;
+									?>
 									<p class="textright"><a href="<?php bloginfo( 'url' );?>/wp-admin/options-general.php?page=ps_notes_settings" class="button">Edit Settings</a></p>
 								</div><?php // Closes #the-comment-list ?>
 							</div> <?php // Closes .inside ?>
+														
 						</div><?php // Closes .postbox #dashboard_recent_timeline ?>
 						<?php if ( is_plugin_active('scholarpress-courseware/spcourseware-admin.php') ) { 
 						?>
@@ -772,7 +879,7 @@ function psn_notes_displaylist() {
 	
 	<?php // Create table markup
 	if ( ! empty($notes) ) : ?>
-		<form id="posts-filter" action="" method="get">
+		<form id="posts-filter" action="" method="post">
 			<input type="hidden" name="page" class="page_type_notes" value="notes" />
 			<?php wp_nonce_field( 'psnotes-note-delete' ); ?>
 			
