@@ -21,7 +21,7 @@ function escapeCSV( $str ) {
 	// replace \r\n (new line) with " "
 	$str = str_replace('\r\n', ' ', $str);
 		
-	return $str . "\t";
+	return $str . ",";
 }
 
 function psn_generate_csv( $args = array() ) {
@@ -42,6 +42,9 @@ function psn_generate_csv( $args = array() ) {
 		$getfield = '';
 		$notes_table_name = $wpdb->prefix . "notes";
 		
+		// Check if we're filtering, and create the query as requested
+		// need to figure this out...
+		
 		$result = $wpdb->get_results("SELECT * FROM $notes_table_name");
 		
 		$r1 = mysql_query("SELECT * FROM ".$notes_table_name);
@@ -50,15 +53,15 @@ function psn_generate_csv( $args = array() ) {
 		for ( $i=0; $i<$fields_num; $i++ ) {
 			$field = mysql_fetch_field($r1);
 			$field = (object) $field;
-			$getfield .= $field -> name . "\t";
+			$getfield .= $field -> name . ",";
 		}
 		
-		$getfield .= 'Author' . "\t";
-		$getfield .= 'Note posted from' . "\t";
+		$getfield .= 'Author' . ",";
+		$getfield .= 'Note posted from' . ",";
 		
 		$sub = substr_replace($getfield, '', -1);
 		$fields = $sub; // get fields name
-		$each_field = explode("\t", $sub);
+		$each_field = explode(",", $sub);
 		
 		// get fields values without last comma
 		foreach ( $result as $row ) {

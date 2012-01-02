@@ -3,7 +3,7 @@
 Plugin Name: PlainSight Notes
 Plugin URI: http://chnm.gmu.edu/hiddeninplainsight/
 Description: A plugin allowing note fields for users to save text to be retrieved elsewhere.
-Version: 1.2.0
+Version: 1.8
 Author: Adam Turner 
 Author URI: http://adamturner.org/
 License: GPL2
@@ -262,10 +262,10 @@ function psns_admin_menu() {
 	$help = add_submenu_page('plainsightnotes', 'PS Notes | Help', 'Help', 'delete_others_posts', 'help', 'psn_help');
 	$plainsightnotesPages = array($psnManage, $notes, /*$timeline,*/ $help);
 	
-	add_management_page( __('PS Notes Export','ps-notes-export'), __('PS Notes Export','ps-notes-export'), 'manage_options', '', 'psnadmin_export' );	
+	add_management_page( __('PS Notes Export','ps-notes-export'), __('PS Notes Export','ps-notes-export'), 'manage_options', '', 'psnadmin_export' );
 	
 	foreach( $plainsightnotesPages as $page ) {
-		add_action('admin_print_styles-' . $page, 'psn_admin_stuff');
+		add_action( 'admin_print_styles-' . $page, 'psn_admin_stuff' );
 	}
 }
 
@@ -571,7 +571,7 @@ function psn_notes_editform( $args ) {
 			</div><!-- #titlediv -->
 			<div class="postbox" id="notefield">
 				<div class="inside">
-					<textarea name="note_content" id="note-textarea" class="mceEditor input maxlength" rows="<?php echo $textarea_rows; ?>" cols="<?php echo $textarea_cols; ?>"><?php if ( !empty($data) ) echo htmlspecialchars($data->notes_content); ?></textarea>
+					<textarea name="note_content" id="note-textarea" class="mceEditor input maxlength" rows="<?php echo $textarea_rows; ?>" cols="<?php echo $textarea_cols; ?>"><?php if ( !empty($data) ) echo esc_textarea($data->notes_content); ?></textarea>
 					<?php if ( $char_limit > 0 ) { ?>
 						<span class="remaining-char"><span id="psnscript-chars"><?php echo $char_limit; ?></span> character limit.</span>
 					<?php } ?>
@@ -599,8 +599,6 @@ function psn_notes_editform( $args ) {
 		<!-- End of note adding form -->	
 	<?php endif;
 }
-
-
 
 /**
  * Emails Notes published from the front end if option is selected
@@ -690,17 +688,17 @@ function psn_manage() {
 							<h3 class="handle"><span>Recently Published Notes</span></h3>
 							<div class="inside">
 								<div id="the-comment-list" class="list:comment">
-									<?php psn_recent_notes( 5 ); ?>
+									<?php psn_recent_notes( 'howmany=5&title_wrap=h4&excerpt=true' ); ?>
 									<p class="textright"><a href="?page=notes" class="button">View All</a></p>
 								</div><?php // Closes #the-comment-list ?>
 							</div> <?php // Closes .inside ?>
 						</div><?php // Closes .postbox #dashboard_recent_notes ?>
 						<div id="dashboard_recent_notes_by_auth" class="postbox">
 							<div class="handlediv" title="Click to toggle"><br /></div>
-							<h3 class="handle"><span>Recent Published by <?php echo $current_user->display_name; ?></span></h3>
+							<h3 class="handle"><span>Recently Published by <?php echo $current_user->display_name; ?></span></h3>
 							<div class="inside">
 								<div id="the-recent-list" class="list:comment">
-									<?php psn_notes_by_author_id( 'author_id=' . $current_user->ID . '&howmany=3' ); ?>
+									<?php psn_notes_by_author_id( 'author_id=' . $current_user->ID . '&howmany=3&title_wrap=h4&excerpt=true&avatar=0' ); ?>
 									<p class="textright"><a href="?page=notes" class="button">View All</a></p>
 								</div><?php // Closes #the-recent-list ?>
 							</div> <?php // Closes .inside ?>
@@ -950,13 +948,30 @@ function psn_notes_displaylist() {
 function psnadmin_export() {
 	
 	require_once ('admin.php');
-
+	
 	if ( !current_user_can('export') )
 		wp_die(__('You do not have sufficient permissions to export the content of this site.'));
 	
-	/** Load WordPress export API */
-	$title = __('Export');
+	?>
+	<script type="text/javascript">
+	//<![CDATA[
+		jQuery(document).ready(function($) {
+	 		var form = $('#psn-export-filters'),
+	 			 filters = form.find('.export-filters');
+	 		filters.hide();
+	 		form.find('input:radio').change(function() {
+				filters.slideUp('fast');
+				switch ( $(this).val() ) {
+					case 'filter_notes': $('#note-filters').slideDown(); break;
+					//case 'posts': $('#page-filters').slideDown(); break;
+				}
+	 		});
+		});
+	//]]>
+	</script>
+	<?php 
 	
+	$title = __('Export');
 	?>
 	
 	<div class="wrap">
@@ -975,6 +990,28 @@ function psnadmin_export() {
 				<label><input type="radio" name="psncontent" value="all" checked="checked" /> <?php _e( 'All notes' ); ?></label>
 				<span class="description"><?php _e( 'This will contain all of the Notes.' ); ?></span>
 			</p>
+			
+			<p>
+				<label><input type="radio" name="psncontent" value="filter_notes"> <?php _e( 'Filter Notes' ); ?></label>
+				<span class="description"><?php _e( 'Select to filter exported Notes by author, staus, etc.' ); ?></span>
+			</p>
+			<ul id="note-filters" class="export-filters">
+				<li>
+					<label><?php _e( 'Authors:' ); ?></label>
+					<?php wp_dropdown_users( array( 'show' => 'user_login', 'multi' => true, 'show_option_all' => __('All') ) ); ?>
+				</li>
+				<li>
+					<label><?php _e( 'Status:' ); ?></label>
+					<select name="status">
+						<option value="0" selected="selected"><?php _e( 'All' ); ?></option>
+						<option value="drafted"><?php _e( 'Drafted' ); ?></option>
+						<option value="published"><?php _e( 'Published' ); ?></option>
+						<option value="archived"><?php _e( 'Archived' ); ?></option>
+						<option value="trashed"><?php _e( 'Trashed' ); ?></option>
+					</select>
+				</li>
+			</ul>
+			
 			<?php submit_button( __('Download Export File'), 'secondary' ); ?>
 		</form>
 		
@@ -996,6 +1033,9 @@ function psn_csv_export(){
 		
 		if ( ! isset( $_GET['psncontent'] ) || 'all' == $_GET['psncontent'] ) {
 			$args['psncontent'] = 'all';
+		} elseif ( 'filter_notes' == $_GET['psncontent'] ) {
+			$args['author'] = !isset( $_GET['user'] ) ? '' : $_GET['user'];
+			$args['status'] = !isset( $_GET['status'] ) ? '' : $_GET['status'];
 		}
 		
 		echo psn_generate_csv( $args );

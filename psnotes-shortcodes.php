@@ -68,10 +68,10 @@ function shortcode_psn_the_note( $args ) {
 	extract(shortcode_atts(array(
 		'noteID' => (int) $noteID,
 		'wrap_class' => 'note',
-		'title_wrap' => 'h4',
+		'title_wrap' => 'h1',
 		'length' => 'full',
 		'date_first' => true,
-		'show_avatar' => true,
+		'show_avatar' => true
      ), $args));
 	
 	ob_start();
@@ -192,7 +192,7 @@ function shortcode_psn_notes_by_meta( $args ) {
 		'author_id' => (int) $author_id,
 		'howmany' => (int) $howmany,
 		'wrap_class' => 'note',
-		'title_wrap' => 'h4',
+		'title_wrap' => 'h1',
 		'length' => 'full',
 	), $args));
 	

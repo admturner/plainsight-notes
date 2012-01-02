@@ -9,281 +9,219 @@
  *
  * @package WordPress
  * @subpackage PlainSight-Notes
- * @subpackage Public
+ *
  * @since 0.9.5
  */
 
 // Page Delimiters 
 define('PSN_NOTES_PAGE', '<psnotes />');
 
+
 /**
- * Display full note entry for given note ID.
+ * Create the Note excerpt
  *
- * @since 0.9.5
- * @uses psn_get_note_by_id()
+ * @since 1.8
+ */
+function psn_get_the_note_excerpt( $data = null, $length = 25 ) {
+	$text = $data->notes_content;
+	$words = explode(' ', $text, $length+1);
+	if (count($words)> $length) {
+		array_pop($words);
+		$text = implode(' ', $words);
+		$text = $text . ' [...]';
+	} else {
+		$text = implode(' ', $words);
+	}
+	
+	return wptexturize($text);
+}
+
+/**
+ * The standard HTML output for all Notes
+ * 
+ * @todo Add an "excerpt == true" case
+ *
+ * @since 1.8
+ */
+function psn_the_note_output( $data = null, $wrap_class = 'note', $title_wrap = 'h1', $excerpt = false, $avatar = true ) {
+	$user_info = get_userdata($data->notes_authorID);
+	?>
+	<article id="note-<?php echo $data->noteID; ?>" class="<?php echo esc_attr( $wrap_class ); ?>">
+		<header class="note-meta">
+			<div class="note-author vcard">
+				<?php 
+				if ( $avatar == true ) 
+					echo get_avatar($data->notes_authorID, 50);
+				echo '<' . $title_wrap . ' class="note-title">' . wptexturize($data->notes_title) . '</' . $title_wrap . '>';
+				if ( $excerpt == false ) 
+					echo '<h2 class="note-sub"><span class="fn">' . wptexturize($user_info->display_name) . '</span> commenting on <a href="' . esc_url( get_permalink( $data->notes_parentPostID ) ) . '" title="' . esc_attr( get_the_title( $data->notes_parentPostID ) ) . '">' . _(wptexturize(get_the_title( $data->notes_parentPostID )) ) . '</a> <span class="says">said:</span></h2>';
+				?>
+			</div><!-- .note-author .vcard -->
+		</header>
+		<div class="note-content">
+			<?php if ( $excerpt == false ) {
+				echo wpautop(wptexturize($data->notes_content));
+			} else {
+				echo '<p>' . psn_get_the_note_excerpt( $data, 25 ) . '</p>';
+			} ?>
+		</div><!-- .note-content -->
+		<footer class="note-meta">
+			<h5>Posted on <span class="pub-date"><?php echo $data->notes_date; ?></span></h5>.
+		</footer>
+	</article><!-- #note-<?php echo $data->noteID; ?> -->
+	<?php 
+}
+
+/**
+ * Display single Note based on given ID.
+ *
+ * @uses psn_get_note_by_id();
+ * @uses psn_the_note_output( $data, $wrap_class, $title_wrap, $excerpt );
  *
  * @param int $noteID Note ID from notes table
- *
- * @todo Add else{} if ($length=='small')
- * @todo Filter output of content to auto pee
+ * 
+ * @since 1.8
  */
 function psn_the_note( $args ) { 
-	global $wpdb;
-	
 	$defaults = array(
 		'noteID' => (int) $noteID,
 		'wrap_class' => 'note',
-		'title_wrap' => 'h4',
+		'title_wrap' => 'h1',
 		'length' => 'full',
 		'date_first' => true,
-		'show_avatar' => true,
+		'avatar' => true
 	);
 	$args = wp_parse_args( $args, $defaults );
 	extract( $args, EXTR_SKIP );
 	
-	$table_name = $wpdb->prefix . "notes";
 	$note = psn_get_note_by_id( $noteID );
-	$user_info = get_userdata($note->notes_authorID);
 	$status = $note->note_status;
-	
-	if ( $status == 'published' || $status == 'archived' ) : ?>
-		<div class="<?php echo $wrap_class; ?>">
-			<?php if($date_first==true):
-				
-				$meta = '<div class="note-meta">';
-				if ( $show_avatar == true ) 
-					$meta .= get_avatar( $note->notes_authorID, 50 );
-				$meta .= '<p>';
-				$meta .= '<cite class="note-author">' . $user_info->display_name . '</cite>';
-				$meta .= ' commenting on <a href="' . get_permalink($note->notes_parentPostID) . '" title="'. get_the_title($note->notes_parentPostID) . '">' . get_the_title($note->notes_parentPostID) . '</a>';
-				$meta .= '</p>';
-				$meta .= '<abbr class="value">' . $note->notes_date . '</abbr>';
-				$meta .= '<' . $title_wrap . ' class="note-title">' . $note->notes_title . '</' . $title_wrap . '>';
-				$meta .= '</div>';
-				
-				echo $meta; ?>
-				
-				
-				<div class="note-content">
-					<p><?php echo nl2br($note->notes_content); ?></p>
-				</div>
-			<?php else : ?>
-				<div class="note-content">
-					<p><?php echo nl2br($note->notes_content); ?></p>
-				</div>
-				<div class="note-meta">
-					<?php if ( $show_avatar == true ) { echo get_avatar($note->notes_authorID, 50); } ?>
-					<p><cite class="note-author"><?php echo $user_info->display_name; ?></cite> commenting on <a href="<?php echo get_permalink($note->notes_parentPostID); ?>" title="<?php _e(get_the_title($note->notes_parentPostID)); ?>"><?php _e(get_the_title($note->notes_parentPostID)); ?></a></p>
-					<abbr class="value"><?php echo $note->notes_date; ?></abbr>
-					<?php echo '<' . $title_wrap . ' class="note-title">' . $note->notes_title . '</' . $title_wrap . '>'; ?>
-				</div>
-			<?php endif; ?>
-		</div><!-- .<?php echo $wrap_class; ?> -->
-	<?php endif;
-}
-
-/**
- * Display all notes by a given author. Notes are displayed in
- * reverse chronological order (with most recent at the top).
- *
- * @since 0.9.0
- * @uses psn_get_notes_by_author_id()
- *
- * @todo Add else{} if ($length == 'small').
- * @todo Filter output of content to auto pee.
-
- */
-function psn_notes_by_author_id( $args ) {
-	global $wpdb;
-	$defaults = array(
-		'author_id' => (int) $author_id,
-		'exclude_author' => (int) $exclude_author,
-		'howmany' => $howmany,
-		'wrap_class' => 'note',
-		'title_wrap' => 'h4',
-		'length' => 'full',
-		'date_first' => true,
-		'show_avatar' => true,
-		'orderby' => $orderby
-	);
-	$args = wp_parse_args( $args, $defaults );
-	extract( $args, EXTR_SKIP );
-	
-	$table_name = $wpdb->prefix . "notes";
-	$entries = psn_get_notes_by_author_id( $author_id, $howmany, $exclude_author, $orderby );	
-	
-	if ( !empty($entries) ) {
-		foreach ( $entries as $note ) {
-			//print_r($note);
-			$user_info = get_userdata($note->notes_authorID);
-			$status = $note->note_status;
-			if ( $status == 'published' || $status == 'archived' ) : 
-				if ( !is_admin() ) : ?>
-					<div class="<?php echo $wrap_class; ?>">
-						<div class="note-meta">
-							<?php if ( $show_avatar == true ) { echo get_avatar($note->notes_authorID, 50); } ?>
-							<?php echo '<' . $title_wrap . ' class="note-title">' . $note->notes_title . '</' . $title_wrap . '>'; ?>
-							<h6 class="meta"><cite class="note-author"><?php echo $user_info->display_name; ?></cite> commenting on <a href="<?php echo get_permalink($note->notes_parentPostID); ?>" title="<?php _e(get_the_title($note->notes_parentPostID)); ?>"><?php _e(get_the_title($note->notes_parentPostID)); ?></a></h6>
-							<abbr class="value"><?php echo $note->notes_date; ?></abbr>
-						</div>
-						<div class="note-content">
-							<p><?php echo nl2br($note->notes_content); ?></p>
-						</div>
-					</div><!-- .<?php echo $wrap_class; ?> -->
-				<?php else : ?>
-					<div class="<?php echo $wrap_class; ?>">
-						<div class="note-wrap">
-							<h4 class="note-meta">
-								<?php if ( $show_avatar == true ) { echo get_avatar($note->notes_authorID, 50); } ?>
-								From <cite class="comment-author"><?php echo $user_info->display_name; ?></cite> on  <a href="<?php echo get_permalink($note->notes_parentPostID); ?>" title="<?php _e(get_the_title($note->notes_parentPostID)); ?>"><?php _e(get_the_title($note->notes_parentPostID)); ?></a>
-							</h4>
-							<blockquote><p><strong><?php _e($note->notes_title); ?></strong></p></blockquote> 
-							<abbr class="value"><?php _e($note->notes_date); ?></abbr>
-						</div>
-					</div><!-- .<?php echo $wrap_class; ?> -->
-				<?php endif; // end is_admin()
-			endif; // end status check
-		} // endforeach
-	} else {
-		_e("<p>This person hasn't created any notes yet.</p>");
+	if ( $status == 'published' || $status == 'archived' ) {
+		psn_the_note_output( $note, $wrap_class, $title_wrap, $excerpt, $avatar );
 	}
 }
-		
+
 /**
  * Display the most recent notes. Defaults to 4.
  *
+ * @uses psn_get_recent_notes();
+ * @uses psn_the_note_output( $data, $wrap_class, $title_wrap, $excerpt ); @since 1.8
+ * 
  * @since 0.9.0
- * @uses psn_get_recent_notes()
  */
 function psn_recent_notes( $args ) {
-	global $wpdb;
 	$defaults = array(
 		'howmany' => 4,
 		'orderby' => 'noteID',
 		'order' => 'ASC',
 		'wrap_class' => 'note',
-		'title_wrap' => 'h4',
-		'length' => 'full',	
+		'title_wrap' => 'h1',
+		'excerpt' => false,
+		'avatar' => true
 	);
 	$args = wp_parse_args( $args, $defaults );
 	extract( $args, EXTR_SKIP );
-
-	$entries = psn_get_recent_notes( $orderby, $order, $howmany );
-
-	if ( !empty($entries) ) {
-		foreach ( $entries as $note ) {
-			//print_r($note);
-			$user_info = get_userdata($note->notes_authorID);
+	
+	$notes = psn_get_recent_notes( $orderby, $order, $howmany );
+	
+	if ( !empty($notes) ) {
+		foreach ( $notes as $note ) {
 			$status = $note->note_status;
-			if ( $status == 'published' || $status == 'archived' ) : 
-				if ( !is_admin() ) : ?>
-					<div class="<?php echo $wrap_class; ?>">
-						<div class="note-meta">
-							<?php echo get_avatar($note->notes_authorID, 50); ?>
-							<p><cite class="note-author"><?php echo $user_info->display_name; ?></cite> commenting on <a href="<?php echo get_permalink($note->notes_parentPostID); ?>" title="<?php _e(get_the_title($note->notes_parentPostID)); ?>"><?php _e(get_the_title($note->notes_parentPostID)); ?></a></p>
-							<abbr class="value"><?php echo $note->notes_date; ?></abbr>
-							<?php echo '<' . $title_wrap . ' class="note-title">' . $note->notes_title . '</' . $title_wrap . '>'; ?>
-						</div>
-						<div class="note-content">
-							<?php echo wpautop($note->notes_content); ?>
-						</div>
-					</div><!-- .<?php echo $wrap_class; ?> -->
-				<?php else : ?>
-					<div class="<?php echo $wrap_class; ?>">
-						<div class="note-wrap">
-							<h4 class="note-meta">
-								<?php echo get_avatar($note->notes_authorID, 50); ?>
-								From <cite class="comment-author"><?php echo $user_info->display_name; ?></cite> on  <a href="<?php echo get_permalink($note->notes_parentPostID); ?>" title="<?php _e(get_the_title($note->notes_parentPostID)); ?>"><?php _e(get_the_title($note->notes_parentPostID)); ?></a>
-							</h4>
-							<blockquote><p><strong><?php _e($note->notes_title); ?></strong></p></blockquote> 
-							<abbr class="value"><?php _e($note->notes_date); ?></abbr>
-						</div>
-					</div><!-- .<?php echo $wrap_class; ?> -->
-				<?php endif;
-			endif; // end status check 
+			if ( $status == 'published' || $status == 'archived' ) { 
+				psn_the_note_output( $note, $wrap_class, $title_wrap, $excerpt, $avatar );
+			}
 		} // endforeach
 	} else {
-		_e('<p>There are no recently posted notes. Perhaps check back later?</p>');
+		_e('<p>No recently posted notes.</p>');
+	}
+}
+
+/**
+ * Display all notes by a given author. 
+ *
+ * Notes are displayed in reverse chronological order 
+ * (with most recent at the top).
+ *
+ * @uses psn_get_notes_by_author_id();
+ * @uses psn_the_note_output( $data, $wrap_class, $title_wrap, $excerpt ); @since 1.8
+ *
+ * @since 0.9.0
+ */
+function psn_notes_by_author_id( $args ) {
+	$defaults = array(
+		'author_id' => (int) $author_id,
+		'exclude_author' => (int) $exclude_author,
+		'howmany' => $howmany,
+		'wrap_class' => 'note',
+		'title_wrap' => 'h1',
+		'excerpt' => false,
+		'orderby' => $orderby,
+		'avatar' => true
+	);
+	$args = wp_parse_args( $args, $defaults );
+	extract( $args, EXTR_SKIP );
+	
+	$notes = psn_get_notes_by_author_id( $author_id, $howmany, $exclude_author, $orderby );	
+	
+	if ( !empty($notes) ) {
+		foreach ( $notes as $note ) {
+			$status = $note->note_status;
+			if ( $status == 'published' || $status == 'archived' ) {
+				psn_the_note_output( $note, $wrap_class, $title_wrap, $excerpt, $avatar );
+			}
+		} // endforeach
+	} else {
+		$user_info = get_userdata( $author_id );
+		_e('<p>' . $user_info->display_name . 'hasn\'t posted any notes yet.</p>');
 	}
 }
 
 /**
  * Display all notes posted from the given WordPress post/page.
  *
- * @since 0.9.0
  * @uses psn_get_notes_by_parent_post_id()
+ * @uses psn_the_note_output( $data, $wrap_class, $title_wrap, $excerpt ); @since 1.8
+ * 
+ * @since 0.9.0
  */
 function psn_notes_by_parent_post_id( $args ) {
-	global $wpdb;
 	$defaults = array(
 		'parentp_id' => $parentp_id,	
 		'howmany' => $howmany,
 		'exclude_author' => (int) $exclude_author,
 		'wrap_class' => 'note',
-		'title_wrap' => 'h4',
+		'title_wrap' => 'h1',
 		'excerpt' => false,
+		'avatar' => true
 	);
 	$args = wp_parse_args( $args, $defaults );
 	extract( $args, EXTR_SKIP );
 	
-	$table_name = $wpdb->prefix . "notes";
-	$entries = psn_get_notes_by_parent_post_id( $parentp_id, $howmany, $exclude_author );
+	$notes = psn_get_notes_by_parent_post_id( $parentp_id, $howmany, $exclude_author );
 	
-	if ( !empty($entries) ) {
-		foreach ( $entries as $note ) {
-			//print_r($note);
-			$user_info = get_userdata($note->notes_authorID);
+	if ( !empty($notes) ) {
+		foreach ( $notes as $note ) {
 			$status = $note->note_status;
-			if ( $status == 'published' || $status == 'archived' ) : ?>
-				<div class="<?php echo $wrap_class; ?>">
-					<div class="note-meta">
-						<?php echo get_avatar($note->notes_authorID, 50); ?>
-						<?php echo '<' . $title_wrap . ' class="note-title">' . $note->notes_title . '</' . $title_wrap . '>'; ?>
-						<h6 class="meta"><cite class="note-author"><?php echo $user_info->display_name; ?></cite> commenting on <a href="<?php echo get_permalink($note->notes_parentPostID); ?>" title="<?php _e(get_the_title($note->notes_parentPostID)); ?>"><?php _e(get_the_title($note->notes_parentPostID)); ?></a></h6>
-						<abbr class="value"><?php echo $note->notes_date; ?></abbr>
-					</div>
-					<?php 
-					if ( $excerpt == false ) { ?>
-						<div class="note-content">
-							<p><?php echo nl2br($note->notes_content); ?></p>
-						</div>
-					<?php } else { ?>
-						<div class="note-content">
-							<p>
-								<?php
-								$text = $note->notes_content;
-								$words = explode(' ', $text, 26);
-								if (count($words)> 25) {
-									array_pop($words);
-									$text = implode(' ', $words);
-									$text = $text . '[...]';
-								} else {
-									$text = implode(' ', $words);
-								}
-								echo $text;
-							?>
-							</p>
-						</div>
-					<?php } ?>
-				</div><!-- .<?php echo $wrap_class; ?> -->
-			<?php endif; // end status check
+			if ( $status == 'published' || $status == 'archived' ) {
+				psn_the_note_output( $note, $wrap_class, $title_wrap, $excerpt, $avatar );
+			}
 		} // endforeach
 	} else {
-		_e('<p>No notes have been posted from <a href="' . get_permalink($parentp_id) . '" title="' . get_the_title($parentp_id) . '">' . get_the_title($parentp_id) . '</a> yet.</p>');
+		_e('<p>No notes have been posted from <a href="' . esc_url(get_permalink($parentp_id)) . '" title="' . esc_attr(get_the_title($parentp_id)) . '">' . wptexturize(get_the_title($parentp_id)) . '</a> yet.</p>');
 	}
 }
 
 /**
  * Display all notes posted from a given WordPress post/page and
  * only by a specified author.
- *
- * @since 0.9.0
+ * 
  * @uses psn_get_notes_by_meta()
- *
- * @param ...
+ * @uses psn_the_note_output( $data, $wrap_class, $title_wrap, $excerpt );
+ * 
+ * @since 1.8
  */
 function psn_notes_by_meta( $args ) {
-	global $wpdb, $current_user;
+	global $current_user;
 	get_currentuserinfo();
 	
 	$defaults = array(
@@ -291,8 +229,9 @@ function psn_notes_by_meta( $args ) {
 		'author_id' => '',
 		'howmany' => (int) $howmany,
 		'wrap_class' => 'note',
-		'title_wrap' => 'h4',
-		'length' => 'full',
+		'title_wrap' => 'h1',
+		'excerpt' => false,
+		'avatar' => true
 	);
 	$args = wp_parse_args( $args, $defaults );
 	extract( $args, EXTR_SKIP );
@@ -301,121 +240,18 @@ function psn_notes_by_meta( $args ) {
 		$author_id = get_current_user_id();
 	}
 	
-	$table_name = $wpdb->prefix . "notes";
-	$entries = psn_get_notes_by_meta( $parentp_id, $author_id, $howmany, $orderby );
+	$notes = psn_get_notes_by_meta( $parentp_id, $author_id, $howmany, $orderby );
 	
-	if ( !empty($entries) ) {
-		foreach ( $entries as $note ) {
-			//print_r($note);
-			$user_info = get_userdata($note->notes_authorID);
+	if ( !empty($notes) ) {
+		foreach ( $notes as $note ) {
 			$status = $note->note_status;
-			if ( $status == 'published' || $status == 'archived' ) : ?>
-				<div class="<?php echo $wrap_class; ?>">
-					<div class="note-meta">
-						<?php echo get_avatar($note->notes_authorID, 50); ?>
-						<p><cite class="note-author"><?php echo $user_info->display_name; ?></cite> commenting on <a href="<?php echo esc_url(get_permalink($note->notes_parentPostID)); ?>" title="<?php _e(get_the_title($note->notes_parentPostID)); ?>"><?php _e(get_the_title($note->notes_parentPostID)); ?></a></p>
-						<abbr class="value"><?php echo $note->notes_date; ?></abbr>
-						<?php echo '<' . $title_wrap . ' class="note-title">' . $note->notes_title . '</' . $title_wrap . '>'; ?>
-					</div>
-					<div class="note-content">
-						<?php echo wpautop($note->notes_content); ?>
-					</div>
-				</div><!-- .<?php echo $wrap_class; ?> -->
-			<?php endif; // end status check
+			if ( $status == 'published' || $status == 'archived' ) {
+				psn_the_note_output( $note, $wrap_class, $title_wrap, $excerpt, $avatar );
+			}
 		} // endforeach
 	} else {
 		$user_info = get_userdata( $author_id );
-		_e('<p>No notes have been posted from <a href="' . get_permalink($parentp_id) . '" title="' . get_the_title($parentp_id) . '">' . get_the_title($parentp_id) . '</a> by '. $user_info->first_name .'.</p>');
-	}
-}
-
-/**
- * CHANGE THIS TO LIST NOTES (linked title only)
- *
- * @since 0.9.0
- * @uses
- *
- * @todo CHANGE THIS TO LIST NOTES (linked title only).
- */
-function psn_list_notes( $noteID, $title = "h6" ) { 
-   $result = psn_get_note_by_id($noteID);
-	?>
-	<li class="note-title-link">
-		<?php echo nl2br($result->notes_title); ?>
-		<span class="fn"><?php echo $author; ?></span>
-	</li> 
-<?php
-}
-
-
-
-
-
-
-/**
- * Display timeline year selected on given WordPress page/post ID by
- * given author. Can display either full timeline with selected year
- * highlighted or only the selected year.
- *
- * @since 0.9.0
- * @uses psn_get_timeline_by_meta()
- */
-function psn_timeline_by_meta( $args ) {
-	global $wpdb;
-	
-	$defaults = array(
-		'parentp_id' => (int) $parentp_id,
-		'author_id'  => (int) $author_id,
-		'howmany' 	 => (int) $howmany,
-		'display'	 => 'full_timeline', // Alternate is year_only
-		'answer'	 => (int) $answer,
-		'yr1'		 => '1650-1700',
-		'yr2'		 => '1700-1750',
-		'yr3'		 => '1750-1800',
-		'yr4'		 => '1800-1850',
-		'yr5'		 => '1850-1900',
-		'yr6'		 => '1900-1950',
-		'yr7'		 => '1950-today',
-	);
-
-	$args = wp_parse_args( $args, $defaults );
-
-	extract( $args, EXTR_SKIP );
-	
-	$table_name = $wpdb->prefix . "timelines";
-	$years = psn_get_timeline_by_meta( $parentp_id, $author_id, $howmany );
-	
-	if ( !empty($years) ) {
-		foreach ( $years as $year ) {
-			//print_r($note);
-			$chosen = sanitize_title($year->timelines_yearSelected);
-		?>
-			<div class="timeline-year">
-				
-				<?php if ( $display == 'full_timeline' ) : ?>
-					<p><span class="chosen">Your guess.</span> <span class="answer">The answer.</span></p>
-					<ul class="timeline">
-						<li<?php if ( $chosen == $yr1 ) _e(' id="chosen-year"'); if ( $answer == 1 ) _e(' class="correct-year"'); ?>><?php _e($yr1); ?><?php if ( $chosen == $yr1 && $answer == 1 ) echo ' <span class="yr7">Correct!</span>'; ?></li>
-						<li<?php if ( $chosen == $yr2 ) _e(' id="chosen-year"'); if ( $answer == 2 ) _e(' class="correct-year"'); ?>><?php _e($yr2); ?><?php if ( $chosen == $yr2 && $answer == 2 ) echo ' <span class="yr7">Correct!</span>'; ?></li>
-						<li<?php if ( $chosen == $yr3 ) _e(' id="chosen-year"'); if ( $answer == 3 ) _e(' class="correct-year"'); ?>><?php _e($yr3); ?><?php if ( $chosen == $yr3 && $answer == 3 ) echo ' <span class="yr7">Correct!</span>'; ?></li>
-						<li<?php if ( $chosen == $yr4 ) _e(' id="chosen-year"'); if ( $answer == 4 ) _e(' class="correct-year"'); ?>><?php _e($yr4); ?><?php if ( $chosen == $yr4 && $answer == 4 ) echo ' <span class="yr7">Correct!</span>'; ?></li>
-						<li<?php if ( $chosen == $yr5 ) _e(' id="chosen-year"'); if ( $answer == 5 ) _e(' class="correct-year"'); ?>><?php _e($yr5); ?><?php if ( $chosen == $yr5 && $answer == 5 ) echo ' <span class="yr7">Correct!</span>'; ?></li>
-						<li<?php if ( $chosen == $yr6 ) _e(' id="chosen-year"'); if ( $answer == 6 ) _e(' class="correct-year"'); ?>><?php _e($yr6); ?><?php if ( $chosen == $yr6 && $answer == 6 ) echo ' <span class="yr7">Correct!</span>'; ?></li>
-						<li<?php if ( $chosen == $yr7 ) _e(' id="chosen-year"'); if ( $answer == 7 ) _e(' class="correct-year"'); ?>><?php _e($yr7); ?><?php if ( $chosen == $yr7 && $answer == 7 ) echo ' <span class="yr7">Correct!</span>'; ?></li>
-					</ul>
-
-				<?php elseif ( $display == 'year_only' ) : ?>
-					<div class="year-selected">
-						<p><?php _e($chosen); ?></p>
-					</div>
-				<?php endif; ?>
-				
-			</div><!-- .timeline-year -->
-		<?php 
-		}
-	} else {
-		$user_info = get_userdata( $author_id );
-		_e('<p>No years have been selected from <a href="' . get_permalink($parentp_id) . '" title="' . get_the_title($parentp_id) . '">' . get_the_title($parentp_id) . '</a> by '. $user_info->first_name .'.</p>');
+		_e('<p>No notes have been posted from <a href="' . get_permalink($parentp_id) . '" title="' . get_the_title($parentp_id) . '">' . get_the_title($parentp_id) . '</a> by '. $user_info->display_name .'.</p>');
 	}
 }
 ?>

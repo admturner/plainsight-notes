@@ -18,6 +18,9 @@
 	font-weight: normal;	
 	margin: 0px 0px 0.2em;
 }
+.note .note-sub {
+	font-size: 14px;
+}
 .note blockquote {
 	float: left;
 	width: 40%;
@@ -36,9 +39,6 @@ a:link, a:visited {
 	list-style:none;
 	margin:0;
 	padding:0;
-}
-#the-comment-list p, #the-comment-list code {
-	font-size: 14px;
 }
 .note-filters .archive {
 	color: #666;
