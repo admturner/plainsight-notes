@@ -80,16 +80,29 @@ function psn_get_notes_by_author_id( $author_id, $howmany, $exclude_author, $ord
  * @since 0.9.0
  * @uses $wpdb
  */
-function psn_get_recent_notes( $orderby = 'noteID', $order = 'ASC', $howmany = 6 ) {
-    global $wpdb;
+function psn_get_recent_notes( $orderby = 'noteID', $order = 'ASC', $howmany = 6, $include_pages = array() ) {
+	global $wpdb;
 	$howmany = (int) $howmany;
 	
 	// Set the limit
 	if ( $howmany ) {
 		$limit = "LIMIT $howmany";
 	}
+	
+	$inclusions = '';
+	if ( !empty($include_pages) ) {
+			foreach ( $include_pages as $include ) {
+				if ( empty($inclusions) ) {
+					$inclusions = 'notes_parentPostID=' . $include;
+				} else {
+					$inclusions .= ' OR notes_parentPostID=' . $include;
+				}
+			}
+		$where = "WHERE $inclusions";
+	}
+	
 	$notes_table_name = $wpdb->prefix . "notes";
-	$sql = "SELECT * FROM " . $notes_table_name . " ORDER BY $orderby $order $limit";
+	$sql = "SELECT * FROM " . $notes_table_name . " $where ORDER BY $orderby $order $limit";
 	$results = $wpdb->get_results($sql);
 	
 	return $results;
@@ -126,10 +139,15 @@ function psn_get_notes_by_parent_post_id( $parentp_id, $howmany, $exclude_author
  */
 function psn_get_notes_by_meta( $parentp_id, $author_id, $num, $orderby ) {
 	global $wpdb;
-	$parentp_id = (int) $parentp_id;
+	$parentp_id = $parentp_id;
 	$author_id = (int) $author_id;
 	$num = (int) $num;	
 	$orderby = !empty($orderby) ? $orderby : 'ASC';
+	
+	if ( !is_int($parentp_id) ) {
+		// get ID from page title
+		$parentp_id = get_page_by_title( $parentp_id )->ID;
+	}
 	
 	if ( $num ) {
 		$limit = "LIMIT $num";

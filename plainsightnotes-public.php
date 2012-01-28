@@ -28,7 +28,7 @@ function psn_get_the_note_excerpt( $data = null, $length = 25 ) {
 	if (count($words)> $length) {
 		array_pop($words);
 		$text = implode(' ', $words);
-		$text = $text . ' [...]';
+		$text = $text . ' [...] <a href="' . get_bloginfo( 'url' ) . '/notes#note-' . $data->noteID . '" title="Keep reading...">More &rarr;</a>';
 	} else {
 		$text = implode(' ', $words);
 	}
@@ -66,7 +66,7 @@ function psn_the_note_output( $data = null, $wrap_class = 'note', $title_wrap = 
 			} ?>
 		</div><!-- .note-content -->
 		<footer class="note-meta">
-			<h5>Posted on <span class="pub-date"><?php echo $data->notes_date; ?></span></h5>.
+			<h5>Posted on <span class="pub-date"><?php echo $data->notes_date; ?></span></h5>
 		</footer>
 	</article><!-- #note-<?php echo $data->noteID; ?> -->
 	<?php 
@@ -117,12 +117,13 @@ function psn_recent_notes( $args ) {
 		'wrap_class' => 'note',
 		'title_wrap' => 'h1',
 		'excerpt' => false,
+		'include_pages' => array(),
 		'avatar' => true
 	);
 	$args = wp_parse_args( $args, $defaults );
 	extract( $args, EXTR_SKIP );
 	
-	$notes = psn_get_recent_notes( $orderby, $order, $howmany );
+	$notes = psn_get_recent_notes( $orderby, $order, $howmany, $include_pages );
 	
 	if ( !empty($notes) ) {
 		foreach ( $notes as $note ) {
